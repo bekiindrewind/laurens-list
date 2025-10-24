@@ -795,15 +795,37 @@ class LaurensList {
                         }
                         
                         // Try to get reviews from the book page
-                        const reviewElements = bookPageDoc.querySelectorAll('.reviewText, .review-text, .review');
+                        const reviewSelectors = [
+                            '.reviewText',
+                            '.review-text', 
+                            '.review',
+                            '.gr-review-text',
+                            '.reviewTextContainer',
+                            '.reviewContainer',
+                            '[data-testid="review-text"]',
+                            '.reviewShelf',
+                            '.reviewTextShelf'
+                        ];
+                        
+                        let reviewElements = [];
+                        for (const selector of reviewSelectors) {
+                            const elements = bookPageDoc.querySelectorAll(selector);
+                            if (elements.length > 0) {
+                                reviewElements = elements;
+                                console.log(`  📝 Found ${elements.length} reviews using selector: ${selector}`);
+                                break;
+                            }
+                        }
+                        
                         if (reviewElements.length > 0) {
                             reviews = Array.from(reviewElements)
-                                .slice(0, 5) // Get first 5 reviews
+                                .slice(0, 10) // Get first 10 reviews for better coverage
                                 .map(el => el.textContent.trim())
                                 .join(' ')
-                                .substring(0, 3000); // Limit to 3000 characters
+                                .substring(0, 5000); // Increased limit to 5000 characters
                             
-                            console.log(`  📝 Found ${reviewElements.length} reviews from book page`);
+                            console.log(`  📝 Combined reviews length: ${reviews.length} chars`);
+                            console.log(`  📝 Reviews preview: "${reviews.substring(0, 200)}..."`);
                         }
                     }
                 } catch (e) {
