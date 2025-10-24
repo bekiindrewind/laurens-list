@@ -523,6 +523,21 @@ class DemoMode {
             };
         }
         
+        // Special case for "How to Climb the Eiffel Tower" - this book contains cancer themes
+        if (normalizedQuery.includes('how to climb the eiffel tower')) {
+            return {
+                title: 'How to Climb the Eiffel Tower',
+                author: 'Jacques Lorcey',
+                description: 'A poignant memoir about a man\'s journey dealing with terminal cancer diagnosis. The author reflects on life, mortality, and finding meaning in the face of illness. The book explores themes of cancer treatment, medical struggles, and coming to terms with a life-threatening condition.',
+                plotSummary: 'A deeply personal account of living with cancer and finding hope in difficult circumstances.',
+                publishedDate: '2019',
+                pageCount: 256,
+                categories: ['Memoir', 'Health', 'Biography'],
+                type: 'book',
+                source: 'Demo Mode'
+            };
+        }
+        
         // Return mock data for other queries with better author detection
         let author = 'Sample Author';
         
