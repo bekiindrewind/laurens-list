@@ -38,16 +38,15 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="trigger-warning-section">
-                    <h3>Checking for:</h3>
-                    <div class="trigger-tags">
-                        <span class="trigger-tag active">Cancer</span>
-                        <span class="trigger-tag">Death</span>
-                        <span class="trigger-tag">Violence</span>
-                        <span class="trigger-tag">Mental Health</span>
-                    </div>
+                
+                <div class="search-note">
+                    <p><strong>💡 Tip:</strong> Wrap your search in quotes (e.g., <code>"The Fault in Our Stars"</code>) for exact title matching only.</p>
                 </div>
+                
+                <div id="bookSearchNote" class="search-note book-search-note hidden">
+                    <p><strong>📚 Book Search Tip:</strong> Including the author's name (e.g., <code>"The Fault in Our Stars John Green"</code>) significantly improves search accuracy!</p>
+                </div>
+
             </div>
 
             <div id="results" class="results-section hidden">
@@ -86,10 +85,95 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Information Section -->
+            <div class="info-section">
+                <div class="info-header">
+                    <h3>🔍 How We Determine Safe Content</h3>
+                    <button id="toggleInfoDetails" class="toggle-button">
+                        <span class="toggle-text">Show Details</span>
+                        <span class="toggle-icon">▶</span>
+                    </button>
+                </div>
+                
+                <div id="infoDetails" class="info-details hidden">
+                    <p class="info-description">
+                        Lauren's List uses multiple data sources and advanced analysis methods to provide comprehensive content warnings for cancer-related themes.
+                    </p>
+                    
+                    <div class="sources-grid">
+                        <div class="source-category">
+                            <h4>📚 Book Sources</h4>
+                            <ul>
+                                <li><strong>Google Books API</strong> - Official book descriptions and metadata</li>
+                                <li><strong>Open Library</strong> - Comprehensive book database with detailed summaries</li>
+                                <li><strong>Goodreads</strong> - User reviews and detailed book descriptions</li>
+                                <li><strong>The StoryGraph</strong> - Content warnings and trigger warnings</li>
+                                <li><strong>Wikipedia</strong> - Plot summaries and thematic analysis</li>
+                                <li><strong>Hardcover</strong> - Enhanced book data and reviews</li>
+                                <li><strong>DoesTheDogDie</strong> - Comprehensive trigger warning database</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="source-category">
+                            <h4>🎬 Movie Sources</h4>
+                            <ul>
+                                <li><strong>The Movie Database (TMDB)</strong> - Official movie information and plot summaries</li>
+                                <li><strong>Wikipedia</strong> - Detailed plot analysis and thematic content</li>
+                                <li><strong>IMDb Cancer Movies List</strong> - Curated list of 84+ cancer-themed films</li>
+                                <li><strong>Wikipedia Cancer Category</strong> - 131+ films categorized as cancer-related</li>
+                                <li><strong>DoesTheDogDie</strong> - Comprehensive movie trigger warnings</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="source-category">
+                            <h4>🧠 Analysis Methods</h4>
+                            <ul>
+                                <li><strong>Semantic Analysis</strong> - AI-powered content understanding beyond keywords</li>
+                                <li><strong>Term Detection</strong> - 50+ cancer-related terms and medical conditions</li>
+                                <li><strong>Known Content Database</strong> - Curated list of verified cancer-themed works</li>
+                                <li><strong>Web Search Analysis</strong> - Additional cancer content detection</li>
+                                <li><strong>Multi-Source Validation</strong> - Cross-referencing multiple data sources</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="confidence-info">
+                        <h4>📊 Confidence Levels</h4>
+                        <p>
+                            <strong>95% Confidence:</strong> Found in curated cancer content lists (IMDb, Wikipedia, known database)<br>
+                            <strong>80% Confidence:</strong> Cancer-related terms detected in content analysis<br>
+                            <strong>90% Confidence:</strong> No cancer content detected across all sources
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="disclaimer">
+                    <p><strong>⚠️ Disclaimer:</strong> While we use comprehensive data sources and analysis methods, content warnings may not be 100% complete. Always use your best judgment and consider your personal triggers when consuming media.</p>
+                </div>
+            </div>
+            
+            <!-- Feedback Section -->
+            <div class="feedback-section">
+                <h3>📝 Found an Error?</h3>
+                <p class="feedback-description">
+                    Help us improve Lauren's List! If you found a book or movie that was incorrectly labeled as "Safe" or "Not Recommended", please let us know.
+                </p>
+                <div class="feedback-actions">
+                    <a href="mailto:placeholder@placeholder.com?subject=Lauren's List - Content Classification Error&body=Please include:%0D%0A%0D%0A1. Title of the book/movie%0D%0A2. Whether it was marked Safe or Not Recommended%0D%0A3. What the correct classification should be%0D%0A4. Brief explanation of why%0D%0A%0D%0AThank you for helping improve Lauren's List!" 
+                       class="feedback-button">
+                        <span class="feedback-icon">📧</span>
+                        <span class="feedback-text">Report Mislabeled Content</span>
+                    </a>
+                </div>
+                <p class="feedback-note">
+                    <strong>💡 Tip:</strong> Include the title, current classification, and why you believe it's incorrect. Your feedback helps us improve our detection algorithms!
+                </p>
+            </div>
         </main>
 
         <footer>
-            <p>This tool uses AI analysis to detect sensitive content. Results are not guaranteed to be 100% accurate.</p>
+            <p>&copy; 2025 Lauren's List. Helping you find safe content.</p>
         </footer>
     </div>
 
