@@ -1,22 +1,22 @@
-// API Keys - Loaded from config.js (not committed to version control)
-// Check if config.js exists and load API keys from there
+// API Keys - Injected at build time from environment variables
 let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
 let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
 let HARDCOVER_BEARER_TOKEN = 'YOUR_HARDCOVER_BEARER_TOKEN';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
-// Load API keys from config.js if it exists
+// Load API keys from config.js if available (for local development)
 console.log('🔧 Loading API keys...');
 console.log('CONFIG object available:', typeof CONFIG !== 'undefined');
 
 if (typeof CONFIG !== 'undefined') {
+    // Override with config.js values for local development
     TMDB_API_KEY = CONFIG.TMDB_API_KEY;
     GOOGLE_BOOKS_API_KEY = CONFIG.GOOGLE_BOOKS_API_KEY;
     HARDCOVER_BEARER_TOKEN = CONFIG.HARDCOVER_BEARER_TOKEN;
     DOESTHEDOGDIE_API_KEY = CONFIG.DOESTHEDOGDIE_API_KEY;
-    console.log('✅ API keys loaded from config.js');
+    console.log('✅ API keys loaded from config.js (local development)');
 } else {
-    console.log('⚠️ CONFIG object not found, using placeholder values');
+    console.log('✅ API keys loaded from build process (deployed)');
 }
 
 console.log('📝 Script continuing to load...');

@@ -95,20 +95,55 @@
 
     <!-- Auto-detect environment and load appropriate config -->
     <script>
-        // Detect if we're on GitHub Pages or local development
+        // Detect environment and load appropriate config
         const isGitHubPages = window.location.hostname === 'bekiindrewind.github.io';
-        const configFile = isGitHubPages ? 'config.production.js' : 'config.js';
+        const isNetlify = window.location.hostname.includes('netlify.app');
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
-        // Load the appropriate config file
-        const script = document.createElement('script');
-        script.src = configFile;
-        script.onload = function() {
-            // Load main script after config is loaded
+        let configFile;
+        if (isNetlify) {
+            // On Netlify, API keys are injected at build time, no config file needed
+            configFile = null;
+        } else if (isGitHubPages) {
+            configFile = 'config.production.js'; // Use production config for GitHub Pages
+        } else if (isLocal) {
+            configFile = 'config.js'; // Use local config for localhost
+        } else {
+            configFile = 'config.production.js'; // Default to production config
+        }
+        
+        console.log(`🌐 Environment detected: ${isGitHubPages ? 'GitHub Pages' : isNetlify ? 'Netlify' : isLocal ? 'Local' : 'Unknown'}`);
+        console.log(`📁 Loading config: ${configFile || 'None (build-time injection)'}`);
+        
+        if (configFile) {
+            // Load the appropriate config file
+            const script = document.createElement('script');
+            script.src = configFile;
+            script.onload = function() {
+                // Load main script after config is loaded
+                const mainScript = document.createElement('script');
+                mainScript.src = 'script.js';
+                document.head.appendChild(mainScript);
+            };
+            script.onerror = function() {
+                console.error(`❌ Failed to load ${configFile}, falling back to production config`);
+                // Fallback to production config
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'config.production.js';
+                fallbackScript.onload = function() {
+                    const mainScript = document.createElement('script');
+                    mainScript.src = 'script.js';
+                    document.head.appendChild(mainScript);
+                };
+                document.head.appendChild(fallbackScript);
+            };
+            document.head.appendChild(script);
+        } else {
+            // On Netlify, load script directly (API keys already injected)
             const mainScript = document.createElement('script');
             mainScript.src = 'script.js';
             document.head.appendChild(mainScript);
-        };
-        document.head.appendChild(script);
+        }
     </script>
 </body>
 </html>
