@@ -1057,6 +1057,7 @@ class LaurensList {
                 let descriptionToUse = source.description || '';
                 if (source.source === 'Goodreads' && content.description && content.description.length > 500) {
                     console.log(`    📖 Using combined detailed description (${content.description.length} chars) for Goodreads analysis`);
+                    console.log(`    📖 Detailed description preview: "${content.description.substring(0, 200)}..."`);
                     descriptionToUse = content.description;
                 }
                 
