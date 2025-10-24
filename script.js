@@ -877,7 +877,7 @@ class LaurensList {
             console.log(`    Current combined description length: ${combined.description?.length || 0} chars`);
             
             // Use the longest description, but prioritize Goodreads for detailed content
-            if (result.description && result.description.length > (combined.description?.length || 0)) {
+            if (result.description && result.description.length > 0) {
                 // If this is from Goodreads and has substantial content, prioritize it
                 if (result.source === 'Goodreads' && result.description.length > 500) {
                     console.log(`  📖 Prioritizing Goodreads description (${result.description.length} chars) over existing (${combined.description?.length || 0} chars)`);
@@ -892,7 +892,7 @@ class LaurensList {
                     }
                 }
             } else {
-                console.log(`  📖 Not using description from ${result.source} - shorter than current`);
+                console.log(`  📖 Not using description from ${result.source} - no description available`);
             }
             
             // Combine content warnings
