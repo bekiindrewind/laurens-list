@@ -685,47 +685,92 @@ class LaurensList {
                                     bookElement.querySelector('.author') ||
                                     bookElement.querySelector('[data-testid="author-name"]');
                 
-                // Try multiple selectors for description
-                const descriptionElement = bookElement.querySelector('.readable') ||
-                                         bookElement.querySelector('.description') ||
-                                         bookElement.querySelector('.book-description') ||
-                                         bookElement.querySelector('p');
-                
                 const title = titleElement ? titleElement.textContent.trim() : 'Unknown Title';
                 const author = authorElement ? authorElement.textContent.trim() : 'Unknown Author';
-                const description = descriptionElement ? descriptionElement.textContent.trim() : '';
                 
                 console.log(`  📖 Goodreads found: ${title} by ${author}`);
-                console.log(`  📖 Description length: ${description.length}`);
                 
-                // Try to get reviews/comments
+                // Try to get the book's individual page for detailed description
+                let detailedDescription = '';
                 let reviews = '';
+                
                 try {
-                    // Look for review snippets in the search results
+                    // Look for a link to the individual book page
+                    const bookLink = bookElement.querySelector('a[href*="/book/show/"]');
+                    if (bookLink) {
+                        const bookUrl = 'https://www.goodreads.com' + bookLink.getAttribute('href');
+                        console.log(`  🔍 Fetching detailed book page: ${bookUrl}`);
+                        
+                        // Fetch the individual book page
+                        const bookPageUrl = corsProxy + encodeURIComponent(bookUrl);
+                        const bookPageResponse = await fetch(bookPageUrl);
+                        const bookPageHtml = await bookPageResponse.text();
+                        
+                        console.log(`  📊 Book page HTML length: ${bookPageHtml.length} characters`);
+                        
+                        // Parse the book page
+                        const bookPageDoc = parser.parseFromString(bookPageHtml, 'text/html');
+                        
+                        // Try to get the detailed description
+                        const descriptionSelectors = [
+                            '[data-testid="description"]',
+                            '.readable',
+                            '.description',
+                            '.book-description',
+                            '#description',
+                            '.bookPageMetaData .description'
+                        ];
+                        
+                        for (const selector of descriptionSelectors) {
+                            const descElement = bookPageDoc.querySelector(selector);
+                            if (descElement && descElement.textContent.trim().length > 50) {
+                                detailedDescription = descElement.textContent.trim();
+                                console.log(`  📖 Found detailed description (${detailedDescription.length} chars) using selector: ${selector}`);
+                                break;
+                            }
+                        }
+                        
+                        // Try to get reviews from the book page
+                        const reviewElements = bookPageDoc.querySelectorAll('.reviewText, .review-text, .review');
+                        if (reviewElements.length > 0) {
+                            reviews = Array.from(reviewElements)
+                                .slice(0, 5) // Get first 5 reviews
+                                .map(el => el.textContent.trim())
+                                .join(' ')
+                                .substring(0, 3000); // Limit to 3000 characters
+                            
+                            console.log(`  📝 Found ${reviewElements.length} reviews from book page`);
+                        }
+                    }
+                } catch (e) {
+                    console.log(`  ⚠️ Could not fetch detailed book page: ${e.message}`);
+                }
+                
+                // Fallback to search result description if no detailed description found
+                if (!detailedDescription) {
+                    const descriptionElement = bookElement.querySelector('.readable') ||
+                                             bookElement.querySelector('.description') ||
+                                             bookElement.querySelector('.book-description') ||
+                                             bookElement.querySelector('p');
+                    detailedDescription = descriptionElement ? descriptionElement.textContent.trim() : '';
+                    console.log(`  📖 Using search result description (${detailedDescription.length} chars)`);
+                }
+                
+                // Fallback to search result reviews if no detailed reviews found
+                if (!reviews) {
                     const reviewElements = bookElement.querySelectorAll('.reviewText, .review-text, .review, .comment');
                     reviews = Array.from(reviewElements)
                         .map(el => el.textContent.trim())
                         .join(' ')
-                        .substring(0, 2000); // Limit to 2000 characters
+                        .substring(0, 2000);
                     
-                    console.log(`  📝 Found ${reviewElements.length} review snippets`);
-                    
-                    // If no specific review elements, try to get any text content that might be reviews
-                    if (reviews.length === 0) {
-                        const allText = bookElement.textContent;
-                        if (allText.length > 500) {
-                            reviews = allText.substring(0, 2000);
-                            console.log(`  📝 Using general text content as reviews`);
-                        }
-                    }
-                } catch (e) {
-                    console.log(`  ⚠️ Could not extract reviews: ${e.message}`);
+                    console.log(`  📝 Using search result reviews (${reviewElements.length} snippets)`);
                 }
                 
                 return {
                     title: title,
                     author: author,
-                    description: description,
+                    description: detailedDescription,
                     plotSummary: '',
                     reviews: reviews,
                     contentWarnings: '',
