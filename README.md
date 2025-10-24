@@ -28,10 +28,16 @@ A trigger warning website that helps users identify sensitive content in books a
    cd laurens-list
    ```
 
-2. Add your API keys to `script.js`:
+2. Set up your API keys:
+   - Copy `config.example.js` to `config.js`
+   - Add your actual API keys to `config.js`:
    ```javascript
-   const TMDB_API_KEY = 'your_tmdb_api_key';
-   const GOOGLE_BOOKS_API_KEY = 'your_google_books_api_key';
+   const CONFIG = {
+       TMDB_API_KEY: 'your_tmdb_api_key',
+       GOOGLE_BOOKS_API_KEY: 'your_google_books_api_key',
+       HARDCOVER_BEARER_TOKEN: 'your_hardcover_token',
+       DOESTHEDOGDIE_API_KEY: 'your_dtdd_api_key'
+   };
    ```
 
 3. Open `index.html` in your web browser

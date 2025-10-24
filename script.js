@@ -1,9 +1,17 @@
-// API Keys - You'll need to get these from the respective services
-const TMDB_API_KEY = '58223110ff42b7ab06b12b3460897091'; // Get from https://www.themoviedb.org/settings/api
-const GOOGLE_BOOKS_API_KEY = 'AIzaSyA364ogCHimNNjIbbCKv7Tnsxx6eQ35IKw'; // Get from https://console.developers.google.com/
-const HARDCOVER_BEARER_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJIYXJkY292ZXIiLCJ2ZXJzaW9uIjoiOCIsImp0aSI6IjY3NzAxOTVjLWUxZTItNGM5NS1hNjUyLTgxOTI2MTIxYjIzZCIsImFwcGxpY2F0aW9uSWQiOjIsInN1YiI6IjUxNTk2IiwiYXVkIjoiMSIsImlkIjoiNTE1OTYiLCJsb2dnZWRJbiI6dHJ1ZSwiaWF0IjoxNzYxMjY2MzQyLCJleHAiOjE3OTI4MDIzNDIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtYWxsb3dlZC1yb2xlcyI6WyJ1c2VyIl0sIngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6InVzZXIiLCJ4LWhhc3VyYS1yb2xlIjoidXNlciIsIlgtaGFzdXJhLXVzZXItaWQiOiI1MTU5NiJ9LCJ1c2VyIjp7ImlkIjo1MTU5Nn19.j32_IEwRbU3qq4l7E3-7kvcvJminBFdRbousSM4z7I8'; // Get from https://hardcover.app/
-const COMMON_SENSE_API_KEY = 'YOUR_COMMON_SENSE_API_KEY'; // Get from https://www.commonsensemedia.org/developers/api
-const DOESTHEDOGDIE_API_KEY = 'fb1ce9d557e74a9544cf0385263efa30'; // Get from https://www.doesthedogdie.com/api
+// API Keys - Loaded from config.js (not committed to version control)
+// Check if config.js exists and load API keys from there
+let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
+let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
+let HARDCOVER_BEARER_TOKEN = 'YOUR_HARDCOVER_BEARER_TOKEN';
+let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
+
+// Load API keys from config.js if it exists
+if (typeof CONFIG !== 'undefined') {
+    TMDB_API_KEY = CONFIG.TMDB_API_KEY;
+    GOOGLE_BOOKS_API_KEY = CONFIG.GOOGLE_BOOKS_API_KEY;
+    HARDCOVER_BEARER_TOKEN = CONFIG.HARDCOVER_BEARER_TOKEN;
+    DOESTHEDOGDIE_API_KEY = CONFIG.DOESTHEDOGDIE_API_KEY;
+}
 
 // Cancer-related terms for semantic analysis
 const CANCER_TERMS = [
