@@ -100,6 +100,13 @@
         const isNetlify = window.location.hostname.includes('netlify.app');
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
+        // Debug logging
+        console.log('🔍 Environment Detection Debug:');
+        console.log(`  Hostname: ${window.location.hostname}`);
+        console.log(`  isGitHubPages: ${isGitHubPages}`);
+        console.log(`  isNetlify: ${isNetlify}`);
+        console.log(`  isLocal: ${isLocal}`);
+        
         let configFile;
         if (isNetlify) {
             // On Netlify, API keys are injected at build time, no config file needed
@@ -140,6 +147,7 @@
             document.head.appendChild(script);
         } else {
             // On Netlify, load script directly (API keys already injected)
+            console.log('🚀 Loading script.js directly (no config file needed)');
             const mainScript = document.createElement('script');
             mainScript.src = 'script.js';
             document.head.appendChild(mainScript);
