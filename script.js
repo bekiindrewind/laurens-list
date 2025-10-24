@@ -41,6 +41,7 @@ const CANCER_THEMED_CONTENT = {
         'my friends', 'fredrik backman', 'beartown', 'us against you', 'winners',
         'a man called ove', 'anxious people', 'britt-marie was here',
         'the midnight library', 'matt haig', 'the seven husbands of evelyn hugo',
+        'a monster calls', 'patrick ness', 'siobhan dowd',
         'taylor jenkins reid', 'the invisible life of addie larue', 'v.e. schwab',
         'the book thief', 'markus zusak', 'the kite runner', 'khaled hosseini',
         'the help', 'kathryn stockett', 'water for elephants', 'sara gruen',
@@ -696,8 +697,15 @@ class LaurensList {
                 
                 try {
                     // Look for a link to the individual book page
-                    const bookLink = bookElement.querySelector('a[href*="/book/show/"]');
+                    console.log(`  🔍 Looking for book page link...`);
+                    const bookLink = bookElement.querySelector('a[href*="/book/show/"]') ||
+                                   bookElement.querySelector('a[href*="/book/"]') ||
+                                   bookElement.querySelector('a[href*="book/show"]') ||
+                                   bookElement.querySelector('a[href*="book/"]');
+                    
+                    console.log(`  🔍 Book link found: ${bookLink ? 'YES' : 'NO'}`);
                     if (bookLink) {
+                        console.log(`  🔍 Book link href: ${bookLink.getAttribute('href')}`);
                         const bookUrl = 'https://www.goodreads.com' + bookLink.getAttribute('href');
                         console.log(`  🔍 Fetching detailed book page: ${bookUrl}`);
                         
