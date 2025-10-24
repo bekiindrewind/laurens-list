@@ -488,7 +488,7 @@ class LaurensList {
         console.log(`📘 Searching Hardcover for: "${query}"`);
         console.log(`  🔍 Hardcover token check: "${HARDCOVER_BEARER_TOKEN.substring(0, 20)}..."`);
         
-        if (HARDCOVER_BEARER_TOKEN === 'YOUR_HARDCOVER_BEARER_TOKEN') {
+        if (HARDCOVER_BEARER_TOKEN === 'YOUR_HARDCOVER_BEARER_TOKEN' || !HARDCOVER_BEARER_TOKEN) {
             console.log(`  ⚠️ Hardcover API key not configured`);
             return null;
         }
@@ -568,7 +568,7 @@ class LaurensList {
     async searchDoesTheDogDie(query) {
         console.log(`🐕 Searching DoesTheDogDie for: "${query}"`);
         
-        if (DOESTHEDOGDIE_API_KEY === 'YOUR_DTDD_API_KEY') {
+        if (DOESTHEDOGDIE_API_KEY === 'YOUR_DTDD_API_KEY' || !DOESTHEDOGDIE_API_KEY) {
             console.log(`  ⚠️ DoesTheDogDie API key not configured`);
             return null;
         }
