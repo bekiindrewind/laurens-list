@@ -29,7 +29,9 @@ const CANCER_TERMS = [
     'hospice', 'palliative', 'cancer treatment', 'cancer patient', 'cancer survivor',
     'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
     'brain tumor', 'brain tumour', 'cancer diagnosis', 'cancer prognosis', 'cancer remission',
-    'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer'
+    'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer',
+    'pediatric oncology', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
+    'cancer hospital', 'oncology department', 'cancer center', 'oncology center'
 ];
 
 // Known cancer-themed books and movies for enhanced detection
@@ -698,10 +700,64 @@ class LaurensList {
                 try {
                     // Look for a link to the individual book page
                     console.log(`  🔍 Looking for book page link...`);
-                    const bookLink = bookElement.querySelector('a[href*="/book/show/"]') ||
-                                   bookElement.querySelector('a[href*="/book/"]') ||
-                                   bookElement.querySelector('a[href*="book/show"]') ||
-                                   bookElement.querySelector('a[href*="book/"]');
+                    
+                    // Try multiple strategies to find the book link
+                    let bookLink = bookElement.querySelector('a[href*="/book/show/"]') ||
+                                 bookElement.querySelector('a[href*="/book/"]') ||
+                                 bookElement.querySelector('a[href*="book/show"]') ||
+                                 bookElement.querySelector('a[href*="book/"]');
+                    
+                    // If not found in bookElement, try searching the entire document
+                    if (!bookLink) {
+                        console.log(`  🔍 Book link not found in book element, searching entire document...`);
+                        bookLink = doc.querySelector('a[href*="/book/show/"]') ||
+                                 doc.querySelector('a[href*="/book/"]') ||
+                                 doc.querySelector('a[href*="book/show"]') ||
+                                 doc.querySelector('a[href*="book/"]');
+                    }
+                    
+                    // If still not found, try to construct the URL from the title
+                    if (!bookLink && title && title !== 'Unknown Title') {
+                        console.log(`  🔍 Constructing book URL from title: "${title}"`);
+                        // This is a fallback - we'll try to fetch the book page directly
+                        const bookSlug = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
+                        const constructedUrl = `https://www.goodreads.com/book/show/${bookSlug}`;
+                        console.log(`  🔍 Constructed URL: ${constructedUrl}`);
+                        
+                        // Try to fetch this constructed URL
+                        try {
+                            const constructedPageUrl = corsProxy + encodeURIComponent(constructedUrl);
+                            const constructedResponse = await fetch(constructedPageUrl);
+                            if (constructedResponse.ok) {
+                                const constructedHtml = await constructedResponse.text();
+                                console.log(`  📊 Constructed page HTML length: ${constructedHtml.length} characters`);
+                                
+                                // Parse the constructed page
+                                const constructedDoc = parser.parseFromString(constructedHtml, 'text/html');
+                                
+                                // Try to get the detailed description from constructed page
+                                const descriptionSelectors = [
+                                    '[data-testid="description"]',
+                                    '.readable',
+                                    '.description',
+                                    '.book-description',
+                                    '#description',
+                                    '.bookPageMetaData .description'
+                                ];
+                                
+                                for (const selector of descriptionSelectors) {
+                                    const descElement = constructedDoc.querySelector(selector);
+                                    if (descElement && descElement.textContent.trim().length > 50) {
+                                        detailedDescription = descElement.textContent.trim();
+                                        console.log(`  📖 Found detailed description (${detailedDescription.length} chars) using constructed URL and selector: ${selector}`);
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`  ⚠️ Could not fetch constructed URL: ${e.message}`);
+                        }
+                    }
                     
                     console.log(`  🔍 Book link found: ${bookLink ? 'YES' : 'NO'}`);
                     if (bookLink) {
