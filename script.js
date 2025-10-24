@@ -1112,14 +1112,16 @@ function initializeApp() {
     console.log('TMDB_API_KEY:', TMDB_API_KEY);
     console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY);
     
-    if (TMDB_API_KEY === 'YOUR_TMDB_API_KEY' || GOOGLE_BOOKS_API_KEY === 'YOUR_GOOGLE_BOOKS_API_KEY') {
-        console.log('Running in demo mode. Please add your API keys to enable full functionality.');
-        
-        // Override search methods with demo versions
-        LaurensList.prototype.searchBook = DemoMode.searchBook;
-        LaurensList.prototype.searchMovie = DemoMode.searchMovie;
-    } else {
+    if (TMDB_API_KEY !== 'YOUR_TMDB_API_KEY' && GOOGLE_BOOKS_API_KEY !== 'YOUR_GOOGLE_BOOKS_API_KEY') {
         console.log('Running with real API data! TMDB and Google Books APIs are active.');
+        if (HARDCOVER_BEARER_TOKEN !== 'YOUR_HARDCOVER_BEARER_TOKEN') {
+            console.log('Hardcover API is also active for enhanced book data.');
+        }
+        if (DOESTHEDOGDIE_API_KEY !== 'YOUR_DTDD_API_KEY') {
+            console.log('DoesTheDogDie API is active for comprehensive trigger warnings.');
+        }
+    } else {
+        console.log('⚠️ API keys not configured - some features may not work properly.');
     }
     
     console.log('🎯 Creating LaurensList instance...');
@@ -1136,171 +1138,4 @@ if (document.readyState === 'loading') {
     initializeApp();
 }
 
-// Demo mode for when API keys are not available
-class DemoMode {
-    static async searchBook(query) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const normalizedQuery = query.toLowerCase();
-        
-        // Special case for "The Fault in Our Stars" to demonstrate cancer detection
-        if (normalizedQuery.includes('fault in our stars')) {
-            return {
-                title: 'The Fault in Our Stars',
-                author: 'John Green',
-                description: 'Sixteen-year-old Hazel Grace Lancaster reluctantly attends a cancer patients\' support group at her mother\'s behest. There she meets Augustus Waters, a seventeen-year-old boy who lost his leg to osteosarcoma. Despite her medical miracle that has bought her a few more years, Hazel has never been anything but terminal. Augustus\'s story is about to be completely rewritten.',
-                plotSummary: 'A story about two teenagers who meet in a cancer support group and fall in love.',
-                publishedDate: '2012',
-                pageCount: 313,
-                categories: ['Young Adult', 'Fiction', 'Romance'],
-                type: 'book',
-                source: 'Demo Mode'
-            };
-        }
-        
-        // Special case for "My Friends" by Fredrik Backman
-        if (normalizedQuery.includes('my friends') && normalizedQuery.includes('backman')) {
-            return {
-                title: 'My Friends',
-                author: 'Fredrik Backman',
-                description: 'A deeply moving story about friendship, love, and loss. The novel follows characters dealing with terminal illness, cancer diagnosis, and the profound impact of medical conditions on relationships. It explores themes of mortality, friendship in the face of illness, and how people cope with serious health challenges.',
-                plotSummary: 'A story about friends supporting each other through terminal illness and cancer diagnosis.',
-                publishedDate: '2024',
-                pageCount: 400,
-                categories: ['Fiction', 'Drama', 'Contemporary'],
-                type: 'book',
-                source: 'Demo Mode'
-            };
-        }
-        
-        // Special case for "How to Climb the Eiffel Tower" - this book contains cancer themes
-        if (normalizedQuery.includes('how to climb the eiffel tower')) {
-            return {
-                title: 'How to Climb the Eiffel Tower',
-                author: 'Jacques Lorcey',
-                description: 'A poignant memoir about a man\'s journey dealing with terminal cancer diagnosis. The author reflects on life, mortality, and finding meaning in the face of illness. The book explores themes of cancer treatment, medical struggles, and coming to terms with a life-threatening condition.',
-                plotSummary: 'A deeply personal account of living with cancer and finding hope in difficult circumstances.',
-                publishedDate: '2019',
-                pageCount: 256,
-                categories: ['Memoir', 'Health', 'Biography'],
-                type: 'book',
-                source: 'Demo Mode'
-            };
-        }
-        
-        // Return mock data for other queries with better author detection
-        let author = 'Sample Author';
-        
-        // Common author mappings for demo mode
-        const authorMappings = {
-            'harry potter': 'J.K. Rowling',
-            'lord of the rings': 'J.R.R. Tolkien',
-            'game of thrones': 'George R.R. Martin',
-            'dune': 'Frank Herbert',
-            '1984': 'George Orwell',
-            'pride and prejudice': 'Jane Austen',
-            'to kill a mockingbird': 'Harper Lee',
-            'the great gatsby': 'F. Scott Fitzgerald',
-            'moby dick': 'Herman Melville',
-            'war and peace': 'Leo Tolstoy',
-            'crime and punishment': 'Fyodor Dostoevsky',
-            'the catcher in the rye': 'J.D. Salinger',
-            'one hundred years of solitude': 'Gabriel García Márquez',
-            'the alchemist': 'Paulo Coelho',
-            'the little prince': 'Antoine de Saint-Exupéry'
-        };
-        
-        // Check for known book-author mappings
-        for (const [bookTitle, bookAuthor] of Object.entries(authorMappings)) {
-            if (normalizedQuery.includes(bookTitle)) {
-                author = bookAuthor;
-                break;
-            }
-        }
-        
-        // Try to extract author from query if it contains common patterns
-        if (author === 'Sample Author' && normalizedQuery.includes('by ')) {
-            const byIndex = normalizedQuery.indexOf('by ');
-            if (byIndex !== -1) {
-                author = normalizedQuery.substring(byIndex + 3).trim();
-                // Clean up the author name
-                author = author.split(' ').map(word => 
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-            }
-        }
-        
-        return {
-            title: query,
-            author: author,
-            description: 'This is a sample book description. It contains various themes and plot elements.',
-            plotSummary: '',
-            publishedDate: '2023',
-            pageCount: 300,
-            categories: ['Fiction', 'Drama'],
-            type: 'book',
-            source: 'Demo Mode'
-        };
-    }
-
-    static async searchMovie(query) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const normalizedQuery = query.toLowerCase();
-        
-        // Special case for "The Fault in Our Stars" movie
-        if (normalizedQuery.includes('fault in our stars')) {
-            return {
-                title: 'The Fault in Our Stars',
-                overview: 'Hazel Grace Lancaster, a 16-year-old cancer patient, meets and falls in love with Gus Waters, a similarly afflicted teen from her cancer support group. Hazel feels that Gus really understands her. They both share the same acerbic wit and a love of books, especially Grace\'s touchstone, "An Imperial Affliction" by Peter Van Houten.',
-                releaseDate: '2014',
-                rating: 7.7,
-                genres: ['Drama', 'Romance'],
-                runtime: 126,
-                type: 'movie',
-                source: 'Demo Mode'
-            };
-        }
-        
-        // Return mock data for other queries with better information
-        let director = 'Sample Director';
-        let genres = ['Drama', 'Romance'];
-        
-        // Common movie mappings for demo mode
-        const movieMappings = {
-            'titanic': { director: 'James Cameron', genres: ['Drama', 'Romance'] },
-            'avatar': { director: 'James Cameron', genres: ['Action', 'Sci-Fi'] },
-            'star wars': { director: 'George Lucas', genres: ['Action', 'Sci-Fi'] },
-            'the godfather': { director: 'Francis Ford Coppola', genres: ['Crime', 'Drama'] },
-            'pulp fiction': { director: 'Quentin Tarantino', genres: ['Crime', 'Drama'] },
-            'forrest gump': { director: 'Robert Zemeckis', genres: ['Drama', 'Romance'] },
-            'the shawshank redemption': { director: 'Frank Darabont', genres: ['Drama'] },
-            'inception': { director: 'Christopher Nolan', genres: ['Action', 'Sci-Fi'] },
-            'the dark knight': { director: 'Christopher Nolan', genres: ['Action', 'Crime'] },
-            'goodfellas': { director: 'Martin Scorsese', genres: ['Crime', 'Drama'] }
-        };
-        
-        // Check for known movie mappings
-        for (const [movieTitle, movieInfo] of Object.entries(movieMappings)) {
-            if (normalizedQuery.includes(movieTitle)) {
-                director = movieInfo.director;
-                genres = movieInfo.genres;
-                break;
-            }
-        }
-        
-        return {
-            title: query,
-            overview: `This is a sample movie overview. Directed by ${director}, it contains various themes and plot elements.`,
-            releaseDate: '2023',
-            rating: 7.5,
-            genres: genres,
-            runtime: 120,
-            type: 'movie',
-            source: 'Demo Mode'
-        };
-    }
-}
 
