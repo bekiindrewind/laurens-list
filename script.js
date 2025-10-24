@@ -486,6 +486,7 @@ class LaurensList {
 
     async searchHardcover(query) {
         console.log(`📘 Searching Hardcover for: "${query}"`);
+        console.log(`  🔍 Hardcover token check: "${HARDCOVER_BEARER_TOKEN.substring(0, 20)}..."`);
         
         if (HARDCOVER_BEARER_TOKEN === 'YOUR_HARDCOVER_BEARER_TOKEN') {
             console.log(`  ⚠️ Hardcover API key not configured`);
