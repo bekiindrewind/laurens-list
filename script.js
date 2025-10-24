@@ -1065,6 +1065,7 @@ class LaurensList {
                 ].join(' ').toLowerCase();
                 
                 console.log(`    Text length: ${sourceText.length} chars`);
+                console.log(`    Text preview: "${sourceText.substring(0, 200)}..."`);
                 
                 // Check this source for cancer terms
                 const sourceTerms = CANCER_TERMS.filter(term => 
