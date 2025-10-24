@@ -140,9 +140,33 @@ class LaurensList {
 
     async searchBook(query) {
         try {
+            console.log(`🔍 Starting book search for: "${query}"`);
+            
             // Try Google Books first, then Open Library as fallback
             const googleResult = await this.searchGoogleBooks(query);
             const openLibraryResult = await this.searchOpenLibrary(query);
+            
+            console.log('📊 API Results Summary:');
+            console.log(`  📚 Google Books: ${googleResult ? '✅ Found' : '❌ No results'}`);
+            console.log(`  📖 Open Library: ${openLibraryResult ? '✅ Found' : '❌ No results'}`);
+            
+            if (googleResult) {
+                console.log(`  📚 Google Books Details:`, {
+                    title: googleResult.title,
+                    author: googleResult.author,
+                    descriptionLength: googleResult.description?.length || 0,
+                    source: googleResult.source
+                });
+            }
+            
+            if (openLibraryResult) {
+                console.log(`  📖 Open Library Details:`, {
+                    title: openLibraryResult.title,
+                    author: openLibraryResult.author,
+                    descriptionLength: openLibraryResult.description?.length || 0,
+                    source: openLibraryResult.source
+                });
+            }
             
             // If we have both results, prioritize the one with better title match
             if (googleResult && openLibraryResult) {
@@ -150,10 +174,17 @@ class LaurensList {
                 const googleTitle = googleResult.title.toLowerCase();
                 const openLibraryTitle = openLibraryResult.title.toLowerCase();
                 
+                console.log('🎯 Title Matching Analysis:');
+                console.log(`  Query: "${normalizedQuery}"`);
+                console.log(`  Google Books: "${googleTitle}"`);
+                console.log(`  Open Library: "${openLibraryTitle}"`);
+                
                 // Check for exact title match
                 if (googleTitle === normalizedQuery) {
+                    console.log('✅ Google Books has exact title match - selected');
                     return googleResult;
                 } else if (openLibraryTitle === normalizedQuery) {
+                    console.log('✅ Open Library has exact title match - selected');
                     return openLibraryResult;
                 }
                 
@@ -161,39 +192,57 @@ class LaurensList {
                 const googleMatch = googleTitle.includes(normalizedQuery) || normalizedQuery.includes(googleTitle);
                 const openLibraryMatch = openLibraryTitle.includes(normalizedQuery) || normalizedQuery.includes(openLibraryTitle);
                 
+                console.log(`  Google Books partial match: ${googleMatch}`);
+                console.log(`  Open Library partial match: ${openLibraryMatch}`);
+                
                 if (googleMatch && !openLibraryMatch) {
+                    console.log('✅ Google Books has better partial match - selected');
                     return googleResult;
                 } else if (openLibraryMatch && !googleMatch) {
+                    console.log('✅ Open Library has better partial match - selected');
                     return openLibraryResult;
                 }
                 
                 // If both match or neither match, prefer Google Books
+                console.log('⚠️ Both or neither match - defaulting to Google Books');
                 return googleResult;
             }
             
             // Return whichever result we have
-            return googleResult || openLibraryResult;
+            const selectedResult = googleResult || openLibraryResult;
+            console.log(`🎯 Final Selection: ${selectedResult ? selectedResult.source : 'No results found'}`);
+            
+            return selectedResult;
         } catch (error) {
-            console.error('Book search error:', error);
+            console.error('❌ Book search error:', error);
             throw error;
         }
     }
 
 
     async searchGoogleBooks(query) {
+        console.log(`📚 Searching Google Books for: "${query}"`);
+        
         // Try exact title search first, then general search
         const exactUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:"${encodeURIComponent(query)}"&key=${GOOGLE_BOOKS_API_KEY}`;
         const generalUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&key=${GOOGLE_BOOKS_API_KEY}`;
         
         try {
             // Try exact title search first
+            console.log(`  🔍 Trying exact title search...`);
             let response = await fetch(exactUrl);
             let data = await response.json();
             
+            console.log(`  📊 Exact search results: ${data.items ? data.items.length : 0} items`);
+            
             // If no results from exact search, try general search
             if (!data.items || data.items.length === 0) {
+                console.log(`  🔍 No exact matches, trying general search...`);
                 response = await fetch(generalUrl);
                 data = await response.json();
+                console.log(`  📊 General search results: ${data.items ? data.items.length : 0} items`);
+            } else {
+                console.log(`  ✅ Found exact title match!`);
             }
             
             if (data.items && data.items.length > 0) {
@@ -241,11 +290,15 @@ class LaurensList {
     }
 
     async searchOpenLibrary(query) {
+        console.log(`📖 Searching Open Library for: "${query}"`);
         const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`;
         
         try {
+            console.log(`  🔍 Fetching from Open Library...`);
             const response = await fetch(url);
             const data = await response.json();
+            
+            console.log(`  📊 Open Library results: ${data.docs ? data.docs.length : 0} items`);
             
             if (data.docs && data.docs.length > 0) {
                 const book = data.docs[0];
@@ -290,12 +343,16 @@ class LaurensList {
 
 
     async searchMovie(query) {
+        console.log(`🎬 Searching TMDB for movie: "${query}"`);
         // Using TMDB API
         const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`;
         
         try {
+            console.log(`  🔍 Fetching from TMDB...`);
             const response = await fetch(searchUrl);
             const data = await response.json();
+            
+            console.log(`  📊 TMDB results: ${data.results ? data.results.length : 0} movies`);
             
             if (data.results && data.results.length > 0) {
                 const movie = data.results[0];
@@ -323,6 +380,8 @@ class LaurensList {
     }
 
     async analyzeContent(content) {
+        console.log(`🔍 Analyzing content: "${content.title}"`);
+        
         // Combine all available text content for analysis
         const textToAnalyze = [
             content.title,
@@ -333,17 +392,35 @@ class LaurensList {
             content.genres ? content.genres.join(' ') : ''
         ].join(' ').toLowerCase();
 
+        console.log(`📝 Analysis text length: ${textToAnalyze.length} characters`);
+        console.log(`📝 Analysis text preview: "${textToAnalyze.substring(0, 200)}..."`);
+
         // Simple analysis - check for cancer terms
         const foundTerms = CANCER_TERMS.filter(term => 
             textToAnalyze.includes(term.toLowerCase())
         );
 
+        console.log(`🎯 Cancer terms found: ${foundTerms.length}`);
+        if (foundTerms.length > 0) {
+            console.log(`  Found terms: ${foundTerms.join(', ')}`);
+        }
+
         // Check against known cancer-themed content
         const knownCancerContent = this.checkKnownCancerContent(content.title, content.type);
+        
+        console.log(`📚 Known cancer content check: ${knownCancerContent.isKnownCancer ? 'YES' : 'NO'}`);
+        if (knownCancerContent.isKnownCancer) {
+            console.log(`  Matched: ${knownCancerContent.matchedTitle}`);
+        }
 
         const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0;
         const confidence = knownCancerContent.isKnownCancer ? 0.95 : 
                           foundTerms.length > 0 ? 0.8 : 0.9;
+
+        console.log(`🎯 Final Analysis Result:`);
+        console.log(`  Safe: ${isSafe ? 'YES' : 'NO'}`);
+        console.log(`  Confidence: ${Math.round(confidence * 100)}%`);
+        console.log(`  Reason: ${isSafe ? 'No cancer content detected' : 'Cancer content found'}`);
 
         return {
             isSafe: isSafe,
