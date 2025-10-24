@@ -795,6 +795,7 @@ class LaurensList {
                         }
                         
                         // Try to get reviews from the book page
+                        console.log(`  🔍 Searching for reviews on book page...`);
                         const reviewSelectors = [
                             '.reviewText',
                             '.review-text', 
@@ -804,16 +805,37 @@ class LaurensList {
                             '.reviewContainer',
                             '[data-testid="review-text"]',
                             '.reviewShelf',
+                            '.reviewTextShelf',
+                            '.gr-review',
+                            '.reviewTextShelf',
+                            '.reviewTextContainer',
+                            '.reviewText',
+                            '.gr-review-text',
                             '.reviewTextShelf'
                         ];
                         
                         let reviewElements = [];
                         for (const selector of reviewSelectors) {
                             const elements = bookPageDoc.querySelectorAll(selector);
+                            console.log(`  🔍 Selector "${selector}": found ${elements.length} elements`);
                             if (elements.length > 0) {
                                 reviewElements = elements;
                                 console.log(`  📝 Found ${elements.length} reviews using selector: ${selector}`);
                                 break;
+                            }
+                        }
+                        
+                        // If no reviews found with selectors, try to find any text that might contain reviews
+                        if (reviewElements.length === 0) {
+                            console.log(`  🔍 No reviews found with selectors, searching for any review-like content...`);
+                            const allTextElements = bookPageDoc.querySelectorAll('*');
+                            for (let element of allTextElements) {
+                                if (element.textContent && element.textContent.toLowerCase().includes('pediatric oncology')) {
+                                    console.log(`  🎯 Found element containing "pediatric oncology": ${element.tagName}`);
+                                    console.log(`  🎯 Element text: "${element.textContent.substring(0, 200)}..."`);
+                                    reviewElements = [element];
+                                    break;
+                                }
                             }
                         }
                         
