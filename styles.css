@@ -663,46 +663,46 @@ footer {
 
 /* Feedback Section Styling */
 .feedback-section {
-    margin-top: 2rem;
-    padding: 2rem;
+    margin-top: 1.5rem;
+    padding: 1.5rem;
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     backdrop-filter: blur(10px);
     text-align: center;
 }
 
 .feedback-section h3 {
     color: #2c3e50;
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
     font-weight: 600;
 }
 
 .feedback-description {
     color: #5a6c7d;
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
-    line-height: 1.6;
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    line-height: 1.5;
 }
 
 .feedback-actions {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .feedback-button {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 2rem;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     text-decoration: none;
-    border-radius: 12px;
+    border-radius: 10px;
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: 1rem;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
 }
 
 .feedback-button:hover {
@@ -740,16 +740,20 @@ footer {
 /* Responsive design for feedback section */
 @media (max-width: 768px) {
     .feedback-section {
-        margin-top: 1.5rem;
-        padding: 1.5rem;
+        margin-top: 1rem;
+        padding: 1rem;
     }
     
     .feedback-button {
-        padding: 0.875rem 1.5rem;
-        font-size: 1rem;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9rem;
     }
     
     .feedback-description {
-        font-size: 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .feedback-section h3 {
+        font-size: 1.1rem;
     }
 }
