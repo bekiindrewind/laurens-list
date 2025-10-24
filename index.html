@@ -77,7 +77,22 @@
         </footer>
     </div>
 
-    <script src="config.production.js"></script>
-    <script src="script.js"></script>
+    <!-- Auto-detect environment and load appropriate config -->
+    <script>
+        // Detect if we're on GitHub Pages or local development
+        const isGitHubPages = window.location.hostname === 'bekiindrewind.github.io';
+        const configFile = isGitHubPages ? 'config.production.js' : 'config.js';
+        
+        // Load the appropriate config file
+        const script = document.createElement('script');
+        script.src = configFile;
+        script.onload = function() {
+            // Load main script after config is loaded
+            const mainScript = document.createElement('script');
+            mainScript.src = 'script.js';
+            document.head.appendChild(mainScript);
+        };
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>
