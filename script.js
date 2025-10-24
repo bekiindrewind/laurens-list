@@ -6,12 +6,20 @@ let HARDCOVER_BEARER_TOKEN = 'YOUR_HARDCOVER_BEARER_TOKEN';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
 // Load API keys from config.js if it exists
+console.log('🔧 Loading API keys...');
+console.log('CONFIG object available:', typeof CONFIG !== 'undefined');
+
 if (typeof CONFIG !== 'undefined') {
     TMDB_API_KEY = CONFIG.TMDB_API_KEY;
     GOOGLE_BOOKS_API_KEY = CONFIG.GOOGLE_BOOKS_API_KEY;
     HARDCOVER_BEARER_TOKEN = CONFIG.HARDCOVER_BEARER_TOKEN;
     DOESTHEDOGDIE_API_KEY = CONFIG.DOESTHEDOGDIE_API_KEY;
+    console.log('✅ API keys loaded from config.js');
+} else {
+    console.log('⚠️ CONFIG object not found, using placeholder values');
 }
+
+console.log('📝 Script continuing to load...');
 
 // Cancer-related terms for semantic analysis
 const CANCER_TERMS = [
@@ -54,6 +62,8 @@ const CANCER_THEMED_CONTENT = {
     ]
 };
 
+console.log('📚 CANCER_THEMED_CONTENT loaded successfully');
+
 class LaurensList {
     constructor() {
         this.initializeEventListeners();
@@ -61,8 +71,13 @@ class LaurensList {
     }
 
     initializeEventListeners() {
+        console.log('🎧 Setting up event listeners...');
+        
         // Media type selection
-        document.querySelectorAll('input[name="mediaType"]').forEach(radio => {
+        const mediaTypeInputs = document.querySelectorAll('input[name="mediaType"]');
+        console.log(`Found ${mediaTypeInputs.length} media type inputs`);
+        
+        mediaTypeInputs.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.currentSearchType = e.target.value;
                 this.updatePlaceholder();
@@ -70,16 +85,34 @@ class LaurensList {
         });
 
         // Search button
-        document.getElementById('searchButton').addEventListener('click', () => {
-            this.performSearch();
-        });
+        const searchButton = document.getElementById('searchButton');
+        console.log('Search button element:', searchButton);
+        
+        if (searchButton) {
+            searchButton.addEventListener('click', () => {
+                console.log('🔍 Search button clicked!');
+                this.performSearch();
+            });
+            console.log('✅ Search button event listener added');
+        } else {
+            console.error('❌ Search button not found!');
+        }
 
         // Enter key in search input
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.performSearch();
-            }
-        });
+        const searchInput = document.getElementById('searchInput');
+        console.log('Search input element:', searchInput);
+        
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    console.log('🔍 Enter key pressed in search input!');
+                    this.performSearch();
+                }
+            });
+            console.log('✅ Search input event listener added');
+        } else {
+            console.error('❌ Search input not found!');
+        }
 
         // Trigger tag selection
         document.querySelectorAll('.trigger-tag').forEach(tag => {
@@ -558,8 +591,14 @@ class LaurensList {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
+function initializeApp() {
+    console.log('🚀 Initializing LaurensList...');
+    
     // Check if API keys are available, otherwise use demo mode
+    console.log('🔍 Checking API keys...');
+    console.log('TMDB_API_KEY:', TMDB_API_KEY);
+    console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY);
+    
     if (TMDB_API_KEY === 'YOUR_TMDB_API_KEY' || GOOGLE_BOOKS_API_KEY === 'YOUR_GOOGLE_BOOKS_API_KEY') {
         console.log('Running in demo mode. Please add your API keys to enable full functionality.');
         
@@ -570,8 +609,19 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Running with real API data! TMDB and Google Books APIs are active.');
     }
     
+    console.log('🎯 Creating LaurensList instance...');
     new LaurensList();
-});
+    console.log('✅ LaurensList initialized successfully!');
+}
+
+// Try multiple initialization methods
+if (document.readyState === 'loading') {
+    console.log('📄 Document still loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    console.log('📄 Document already loaded, initializing immediately...');
+    initializeApp();
+}
 
 // Demo mode for when API keys are not available
 class DemoMode {
