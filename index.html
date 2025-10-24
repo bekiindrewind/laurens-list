@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lauren's List</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lauren's List</h1>
+            <p class="subtitle">Check if books and movies are safe from sensitive content</p>
+        </header>
+
+        <main>
+            <div class="search-section">
+                <div class="media-type-selector">
+                    <label class="radio-option">
+                        <input type="radio" name="mediaType" value="book" checked>
+                        <span class="radio-custom"></span>
+                        <span class="radio-label">Book</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="mediaType" value="movie">
+                        <span class="radio-custom"></span>
+                        <span class="radio-label">Movie</span>
+                    </label>
+                </div>
+
+                <div class="search-form">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" placeholder="Enter book or movie title..." autocomplete="off">
+                        <button id="searchButton" type="button">
+                            <span class="button-text">Search</span>
+                            <div class="spinner hidden"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="trigger-warning-section">
+                    <h3>Checking for:</h3>
+                    <div class="trigger-tags">
+                        <span class="trigger-tag active">Cancer</span>
+                        <span class="trigger-tag">Death</span>
+                        <span class="trigger-tag">Violence</span>
+                        <span class="trigger-tag">Mental Health</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results" class="results-section hidden">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h2 id="resultTitle"></h2>
+                        <div id="safetyStatus" class="safety-status"></div>
+                    </div>
+                    <div class="result-details">
+                        <div id="resultInfo" class="result-info"></div>
+                        <div class="analysis-toggle">
+                            <button id="toggleAnalysis" class="toggle-button expanded">
+                                <span class="toggle-text">Show Content Analysis</span>
+                                <span class="toggle-icon">▶</span>
+                            </button>
+                        </div>
+                        <div id="analysisDetails" class="analysis-details hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden"></div>
+        </main>
+
+        <footer>
+            <p>This tool uses AI analysis to detect sensitive content. Results are not guaranteed to be 100% accurate.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
