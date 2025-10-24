@@ -868,6 +868,9 @@ class LaurensList {
         // Start with the first result as base
         const combined = { ...results[0] };
         
+        // Store all individual results for comprehensive analysis
+        combined.allSources = results;
+        
         // Merge data from all sources
         for (let i = 1; i < results.length; i++) {
             const result = results[i];
@@ -1037,30 +1040,83 @@ class LaurensList {
         console.log(`  Content warnings: "${content.contentWarnings || 'None'}"`);
         console.log(`  Source: "${content.source || 'Unknown'}"`);
         
-        // Combine all available text content for analysis
-        const textToAnalyze = [
-            content.title,
-            content.description || content.overview || '',
-            content.plotSummary || '',
-            content.author || '',
-            content.categories ? content.categories.join(' ') : '',
-            content.genres ? content.genres.join(' ') : '',
-            content.reviews || '', // Include Goodreads reviews
-            content.contentWarnings || '' // Include trigger warnings
-        ].join(' ').toLowerCase();
+        // Check if we have multiple sources to analyze separately
+        let foundTerms = [];
+        let allTextToAnalyze = '';
+        
+        if (content.allSources && content.allSources.length > 1) {
+            console.log(`🔍 Multiple sources detected: ${content.allSources.length} sources`);
+            console.log(`📝 Analyzing each source separately for cancer content...`);
+            
+            // Analyze each source individually
+            for (let i = 0; i < content.allSources.length; i++) {
+                const source = content.allSources[i];
+                console.log(`  🔍 Analyzing source ${i + 1}: ${source.source || 'Unknown'}`);
+                
+                const sourceText = [
+                    source.title || '',
+                    source.description || '',
+                    source.plotSummary || '',
+                    source.author || '',
+                    source.categories ? source.categories.join(' ') : '',
+                    source.genres ? source.genres.join(' ') : '',
+                    source.reviews || '',
+                    source.contentWarnings || ''
+                ].join(' ').toLowerCase();
+                
+                console.log(`    Text length: ${sourceText.length} chars`);
+                
+                // Check this source for cancer terms
+                const sourceTerms = CANCER_TERMS.filter(term => 
+                    sourceText.includes(term.toLowerCase())
+                );
+                
+                if (sourceTerms.length > 0) {
+                    console.log(`    🎯 CANCER TERMS FOUND in ${source.source}: ${sourceTerms.join(', ')}`);
+                    foundTerms = [...foundTerms, ...sourceTerms];
+                } else {
+                    console.log(`    ✅ No cancer terms found in ${source.source}`);
+                }
+                
+                // Add to combined text for overall analysis
+                allTextToAnalyze += ' ' + sourceText;
+            }
+            
+            // Remove duplicates
+            foundTerms = [...new Set(foundTerms)];
+            console.log(`🎯 Total unique cancer terms found across all sources: ${foundTerms.length}`);
+            if (foundTerms.length > 0) {
+                console.log(`  Found terms: ${foundTerms.join(', ')}`);
+            }
+        } else {
+            // Single source analysis (fallback)
+            console.log(`📝 Single source analysis...`);
+            
+            // Combine all available text content for analysis
+            allTextToAnalyze = [
+                content.title,
+                content.description || content.overview || '',
+                content.plotSummary || '',
+                content.author || '',
+                content.categories ? content.categories.join(' ') : '',
+                content.genres ? content.genres.join(' ') : '',
+                content.reviews || '',
+                content.contentWarnings || ''
+            ].join(' ').toLowerCase();
 
-        console.log(`📝 Analysis text length: ${textToAnalyze.length} characters`);
-        console.log(`📝 Analysis text preview: "${textToAnalyze.substring(0, 200)}..."`);
+            // Simple analysis - check for cancer terms
+            foundTerms = CANCER_TERMS.filter(term => 
+                allTextToAnalyze.includes(term.toLowerCase())
+            );
 
-        // Simple analysis - check for cancer terms
-        const foundTerms = CANCER_TERMS.filter(term => 
-            textToAnalyze.includes(term.toLowerCase())
-        );
-
-        console.log(`🎯 Cancer terms found: ${foundTerms.length}`);
-        if (foundTerms.length > 0) {
-            console.log(`  Found terms: ${foundTerms.join(', ')}`);
+            console.log(`🎯 Cancer terms found: ${foundTerms.length}`);
+            if (foundTerms.length > 0) {
+                console.log(`  Found terms: ${foundTerms.join(', ')}`);
+            }
         }
+
+        console.log(`📝 Total analysis text length: ${allTextToAnalyze.length} characters`);
+        console.log(`📝 Analysis text preview: "${allTextToAnalyze.substring(0, 200)}..."`);
 
         // Check against known cancer-themed content
         const knownCancerContent = this.checkKnownCancerContent(content.title, content.type);
