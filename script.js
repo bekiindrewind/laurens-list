@@ -127,6 +127,11 @@ class LaurensList {
             this.toggleAnalysisSection();
         });
 
+        // API Debug toggle button
+        document.getElementById('toggleApiDebug').addEventListener('click', () => {
+            this.toggleApiDebugSection();
+        });
+
     }
 
     updatePlaceholder() {
@@ -175,13 +180,31 @@ class LaurensList {
         try {
             console.log(`🔍 Starting book search for: "${query}"`);
             
-            // Try Google Books first, then Open Library as fallback
-            const googleResult = await this.searchGoogleBooks(query);
-            const openLibraryResult = await this.searchOpenLibrary(query);
+            // Show API debug section
+            this.showApiDebugSection();
+            
+            // Try multiple sources for comprehensive data
+            const [googleBooksData, openLibraryData, hardcoverData, dtddData] = await Promise.allSettled([
+                this.searchGoogleBooks(query),
+                this.searchOpenLibrary(query),
+                this.searchHardcover(query),
+                this.searchDoesTheDogDie(query)
+            ]);
+
+            const googleResult = googleBooksData.status === 'fulfilled' ? googleBooksData.value : null;
+            const openLibraryResult = openLibraryData.status === 'fulfilled' ? openLibraryData.value : null;
+            const hardcoverResult = hardcoverData.status === 'fulfilled' ? hardcoverData.value : null;
+            const dtddResult = dtddData.status === 'fulfilled' ? dtddData.value : null;
             
             console.log('📊 API Results Summary:');
             console.log(`  📚 Google Books: ${googleResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 Open Library: ${openLibraryResult ? '✅ Found' : '❌ No results'}`);
+            console.log(`  📘 Hardcover: ${hardcoverResult ? '✅ Found' : '❌ No results'}`);
+            console.log(`  🐕 DoesTheDogDie: ${dtddResult ? '✅ Found' : '❌ No results'}`);
+            
+            // Update API debug section with results
+            let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
+            debugContent += `<h4>📊 API Results Summary:</h4>\n`;
             
             if (googleResult) {
                 console.log(`  📚 Google Books Details:`, {
@@ -190,6 +213,18 @@ class LaurensList {
                     descriptionLength: googleResult.description?.length || 0,
                     source: googleResult.source
                 });
+                
+                debugContent += `<div class="api-result api-success">
+                    <strong>📚 Google Books: ✅ Found</strong><br>
+                    Title: ${googleResult.title}<br>
+                    Author: ${googleResult.author}<br>
+                    Description Length: ${googleResult.description?.length || 0} characters<br>
+                    Source: ${googleResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>📚 Google Books: ❌ No results</strong>
+                </div>`;
             }
             
             if (openLibraryResult) {
@@ -199,53 +234,96 @@ class LaurensList {
                     descriptionLength: openLibraryResult.description?.length || 0,
                     source: openLibraryResult.source
                 });
+                
+                debugContent += `<div class="api-result api-success">
+                    <strong>📖 Open Library: ✅ Found</strong><br>
+                    Title: ${openLibraryResult.title}<br>
+                    Author: ${openLibraryResult.author}<br>
+                    Description Length: ${openLibraryResult.description?.length || 0} characters<br>
+                    Source: ${openLibraryResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>📖 Open Library: ❌ No results</strong>
+                </div>`;
             }
             
-            // If we have both results, prioritize the one with better title match
-            if (googleResult && openLibraryResult) {
-                const normalizedQuery = query.toLowerCase().trim();
-                const googleTitle = googleResult.title.toLowerCase();
-                const openLibraryTitle = openLibraryResult.title.toLowerCase();
+            if (hardcoverResult) {
+                console.log(`  📘 Hardcover Details:`, {
+                    title: hardcoverResult.title,
+                    author: hardcoverResult.author,
+                    descriptionLength: hardcoverResult.description?.length || 0,
+                    source: hardcoverResult.source
+                });
                 
-                console.log('🎯 Title Matching Analysis:');
-                console.log(`  Query: "${normalizedQuery}"`);
-                console.log(`  Google Books: "${googleTitle}"`);
-                console.log(`  Open Library: "${openLibraryTitle}"`);
-                
-                // Check for exact title match
-                if (googleTitle === normalizedQuery) {
-                    console.log('✅ Google Books has exact title match - selected');
-                    return googleResult;
-                } else if (openLibraryTitle === normalizedQuery) {
-                    console.log('✅ Open Library has exact title match - selected');
-                    return openLibraryResult;
-                }
-                
-                // Check for partial title match
-                const googleMatch = googleTitle.includes(normalizedQuery) || normalizedQuery.includes(googleTitle);
-                const openLibraryMatch = openLibraryTitle.includes(normalizedQuery) || normalizedQuery.includes(openLibraryTitle);
-                
-                console.log(`  Google Books partial match: ${googleMatch}`);
-                console.log(`  Open Library partial match: ${openLibraryMatch}`);
-                
-                if (googleMatch && !openLibraryMatch) {
-                    console.log('✅ Google Books has better partial match - selected');
-                    return googleResult;
-                } else if (openLibraryMatch && !googleMatch) {
-                    console.log('✅ Open Library has better partial match - selected');
-                    return openLibraryResult;
-                }
-                
-                // If both match or neither match, prefer Google Books
-                console.log('⚠️ Both or neither match - defaulting to Google Books');
-                return googleResult;
+                debugContent += `<div class="api-result api-success">
+                    <strong>📘 Hardcover: ✅ Found</strong><br>
+                    Title: ${hardcoverResult.title}<br>
+                    Author: ${hardcoverResult.author}<br>
+                    Description Length: ${hardcoverResult.description?.length || 0} characters<br>
+                    Source: ${hardcoverResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>📘 Hardcover: ❌ No results</strong>
+                </div>`;
             }
             
-            // Return whichever result we have
-            const selectedResult = googleResult || openLibraryResult;
-            console.log(`🎯 Final Selection: ${selectedResult ? selectedResult.source : 'No results found'}`);
+            if (dtddResult) {
+                console.log(`  🐕 DoesTheDogDie Details:`, {
+                    title: dtddResult.title,
+                    author: dtddResult.author,
+                    contentWarnings: dtddResult.contentWarnings,
+                    source: dtddResult.source
+                });
+                
+                debugContent += `<div class="api-result api-success">
+                    <strong>🐕 DoesTheDogDie: ✅ Found</strong><br>
+                    Title: ${dtddResult.title}<br>
+                    Author: ${dtddResult.author}<br>
+                    Content Warnings: ${dtddResult.contentWarnings || 'None'}<br>
+                    Source: ${dtddResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>🐕 DoesTheDogDie: ❌ No results</strong>
+                </div>`;
+            }
             
-            return selectedResult;
+            // Combine results from all APIs
+            const allResults = [googleResult, openLibraryResult, hardcoverResult, dtddResult].filter(Boolean);
+            
+            if (allResults.length === 0) {
+                console.log('❌ No results found from any API');
+                debugContent += `<div class="api-result api-error">
+                    <strong>No results found from any API</strong>
+                </div>`;
+                this.updateApiDebugInfo(debugContent);
+                return null;
+            }
+            
+            // Combine data from all sources
+            const combinedResult = this.combineBookResults(allResults);
+            
+            console.log('🎯 Final Selection:');
+            console.log(`  Combined from ${allResults.length} sources: ${allResults.map(r => r.source).join(', ')}`);
+            console.log(`  Final title: ${combinedResult.title}`);
+            console.log(`  Final author: ${combinedResult.author}`);
+            
+            // Update debug section with final selection
+            debugContent += `<h4>🎯 Final Selection:</h4>\n`;
+            debugContent += `<div class="api-result api-success">
+                <strong>Combined from ${allResults.length} sources</strong><br>
+                Sources: ${allResults.map(r => r.source).join(', ')}<br>
+                Title: ${combinedResult.title}<br>
+                Author: ${combinedResult.author}<br>
+                Description Length: ${combinedResult.description?.length || 0} characters<br>
+                Content Warnings: ${combinedResult.contentWarnings || 'None'}
+            </div>`;
+            
+            this.updateApiDebugInfo(debugContent);
+            
+            return combinedResult;
         } catch (error) {
             console.error('❌ Book search error:', error);
             throw error;
@@ -328,13 +406,16 @@ class LaurensList {
         
         try {
             console.log(`  🔍 Fetching from Open Library...`);
+            console.log(`  🔗 URL: ${url}`);
             const response = await fetch(url);
             const data = await response.json();
             
             console.log(`  📊 Open Library results: ${data.docs ? data.docs.length : 0} items`);
+            console.log(`  📊 Full response:`, data);
             
             if (data.docs && data.docs.length > 0) {
                 const book = data.docs[0];
+                console.log(`  📖 First result:`, book);
                 
                 // Get more detailed information from Open Library
                 let detailedDescription = '';
@@ -343,13 +424,15 @@ class LaurensList {
                 if (book.key) {
                     try {
                         const workUrl = `https://openlibrary.org${book.key}.json`;
+                        console.log(`  🔍 Fetching detailed info from: ${workUrl}`);
                         const workResponse = await fetch(workUrl);
                         const workData = await workResponse.json();
                         
                         detailedDescription = workData.description || '';
                         plotSummary = workData.subtitle || '';
+                        console.log(`  📖 Detailed description length: ${detailedDescription.length}`);
                     } catch (e) {
-                        console.log('Could not fetch detailed Open Library info');
+                        console.log('Could not fetch detailed Open Library info:', e);
                     }
                 }
 
@@ -374,9 +457,205 @@ class LaurensList {
         }
     }
 
+    async searchHardcover(query) {
+        console.log(`📘 Searching Hardcover for: "${query}"`);
+        
+        if (HARDCOVER_BEARER_TOKEN === 'YOUR_HARDCOVER_BEARER_TOKEN') {
+            console.log(`  ⚠️ Hardcover API key not configured`);
+            return null;
+        }
+        
+        // Hardcover uses GraphQL API
+        const graphqlQuery = {
+            query: `
+                query SearchBooks($query: String!) {
+                    searchBooks(query: $query, limit: 1) {
+                        id
+                        title
+                        authors {
+                            name
+                        }
+                        description
+                        publishedDate
+                        pageCount
+                        genres
+                        contentWarnings {
+                            category
+                            description
+                        }
+                    }
+                }
+            `,
+            variables: {
+                query: query
+            }
+        };
+        
+        try {
+            console.log(`  🔍 Fetching from Hardcover GraphQL API...`);
+            const response = await fetch('https://hardcover.app/api/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${HARDCOVER_BEARER_TOKEN}`
+                },
+                body: JSON.stringify(graphqlQuery)
+            });
+            
+            const data = await response.json();
+            console.log(`  📊 Hardcover response:`, data);
+            
+            if (data.data && data.data.searchBooks && data.data.searchBooks.length > 0) {
+                const book = data.data.searchBooks[0];
+                console.log(`  📘 Hardcover found: ${book.title}`);
+                
+                return {
+                    title: book.title || 'Unknown Title',
+                    author: book.authors && book.authors.length > 0 ? book.authors.map(a => a.name).join(', ') : 'Unknown Author',
+                    description: book.description || '',
+                    plotSummary: '',
+                    reviews: '',
+                    contentWarnings: book.contentWarnings && book.contentWarnings.length > 0 ? 
+                        book.contentWarnings.map(cw => `${cw.category}: ${cw.description}`).join(' ') : '',
+                    publishedDate: book.publishedDate || 'Unknown',
+                    pageCount: book.pageCount || null,
+                    categories: book.genres || [],
+                    type: 'book',
+                    source: 'Hardcover'
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Hardcover search error:', error);
+            return null;
+        }
+    }
+
+    async searchDoesTheDogDie(query) {
+        console.log(`🐕 Searching DoesTheDogDie for: "${query}"`);
+        
+        if (DOESTHEDOGDIE_API_KEY === 'YOUR_DTDD_API_KEY') {
+            console.log(`  ⚠️ DoesTheDogDie API key not configured`);
+            return null;
+        }
+        
+        const url = `https://www.doesthedogdie.com/api/search?q=${encodeURIComponent(query)}&api_key=${DOESTHEDOGDIE_API_KEY}`;
+        
+        try {
+            console.log(`  🔍 Fetching from DoesTheDogDie...`);
+            console.log(`  🔗 URL: ${url}`);
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            console.log(`  📊 DoesTheDogDie response:`, data);
+            
+            if (data.results && data.results.length > 0) {
+                const item = data.results[0];
+                console.log(`  🐕 DoesTheDogDie found: ${item.title}`);
+                
+                // Get detailed trigger warnings
+                let triggerWarnings = '';
+                if (item.triggers && item.triggers.length > 0) {
+                    triggerWarnings = item.triggers.map(trigger => 
+                        `${trigger.name}: ${trigger.description || 'Present'}`
+                    ).join(' ');
+                }
+                
+                return {
+                    title: item.title || 'Unknown Title',
+                    author: item.author || 'Unknown Author',
+                    description: item.description || '',
+                    plotSummary: '',
+                    reviews: '',
+                    contentWarnings: triggerWarnings,
+                    publishedDate: item.year || 'Unknown',
+                    pageCount: null,
+                    categories: item.genres || [],
+                    type: 'book',
+                    source: 'DoesTheDogDie'
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('DoesTheDogDie search error:', error);
+            return null;
+        }
+    }
+
+    combineBookResults(results) {
+        console.log(`🔗 Combining ${results.length} book results...`);
+        
+        // Start with the first result as base
+        const combined = { ...results[0] };
+        
+        // Merge data from all sources
+        for (let i = 1; i < results.length; i++) {
+            const result = results[i];
+            
+            // Use the longest description
+            if (result.description && result.description.length > (combined.description?.length || 0)) {
+                combined.description = result.description;
+            }
+            
+            // Combine content warnings
+            if (result.contentWarnings) {
+                if (combined.contentWarnings) {
+                    combined.contentWarnings += ' ' + result.contentWarnings;
+                } else {
+                    combined.contentWarnings = result.contentWarnings;
+                }
+            }
+            
+            // Use more specific author if available
+            if (result.author && result.author !== 'Unknown Author' && combined.author === 'Unknown Author') {
+                combined.author = result.author;
+            }
+            
+            // Use more specific title if available
+            if (result.title && result.title !== 'Unknown Title' && combined.title === 'Unknown Title') {
+                combined.title = result.title;
+            }
+            
+            // Combine categories/genres
+            if (result.categories && result.categories.length > 0) {
+                if (combined.categories) {
+                    combined.categories = [...new Set([...combined.categories, ...result.categories])];
+                } else {
+                    combined.categories = result.categories;
+                }
+            }
+            
+            // Use more specific published date
+            if (result.publishedDate && result.publishedDate !== 'Unknown' && combined.publishedDate === 'Unknown') {
+                combined.publishedDate = result.publishedDate;
+            }
+            
+            // Use page count if available
+            if (result.pageCount && !combined.pageCount) {
+                combined.pageCount = result.pageCount;
+            }
+        }
+        
+        // Update source to reflect multiple sources
+        combined.source = results.map(r => r.source).join(', ');
+        
+        console.log(`  📊 Combined result:`, {
+            title: combined.title,
+            author: combined.author,
+            descriptionLength: combined.description?.length || 0,
+            contentWarningsLength: combined.contentWarnings?.length || 0,
+            sources: combined.source
+        });
+        
+        return combined;
+    }
 
     async searchMovie(query) {
         console.log(`🎬 Searching TMDB for movie: "${query}"`);
+        
+        // Show API debug section
+        this.showApiDebugSection();
+        
         // Using TMDB API
         const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`;
         
@@ -387,8 +666,20 @@ class LaurensList {
             
             console.log(`  📊 TMDB results: ${data.results ? data.results.length : 0} movies`);
             
+            // Update API debug section
+            let debugContent = `<h4>🎬 Movie Search Query: "${query}"</h4>\n`;
+            debugContent += `<h4>📊 TMDB Results:</h4>\n`;
+            
             if (data.results && data.results.length > 0) {
                 const movie = data.results[0];
+                
+                debugContent += `<div class="api-result api-success">
+                    <strong>🎬 TMDB: ✅ Found ${data.results.length} movies</strong><br>
+                    Selected Movie: ${movie.title}<br>
+                    Release Date: ${movie.release_date || 'Unknown'}<br>
+                    Rating: ${movie.vote_average || 'Not rated'}/10<br>
+                    Overview: ${movie.overview ? movie.overview.substring(0, 200) + '...' : 'No overview'}
+                </div>`;
                 
                 // Get additional details
                 const detailsUrl = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_API_KEY}`;
@@ -404,10 +695,25 @@ class LaurensList {
                     runtime: details.runtime,
                     type: 'movie'
                 };
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>🎬 TMDB: ❌ No movies found</strong>
+                </div>`;
+                
+                this.updateApiDebugInfo(debugContent);
+                return null;
             }
-            return null;
         } catch (error) {
             console.error('Movie search error:', error);
+            
+            // Update debug section with error
+            let debugContent = `<h4>🎬 Movie Search Query: "${query}"</h4>\n`;
+            debugContent += `<div class="api-result api-error">
+                <strong>🎬 TMDB: ❌ Error occurred</strong><br>
+                Error: ${error.message}
+            </div>`;
+            
+            this.updateApiDebugInfo(debugContent);
             throw error;
         }
     }
@@ -586,6 +892,37 @@ class LaurensList {
             toggleIcon.textContent = '▶';
             toggleButton.classList.add('expanded');
         }
+    }
+
+    toggleApiDebugSection() {
+        const apiDebugContent = document.getElementById('apiDebugContent');
+        const toggleButton = document.getElementById('toggleApiDebug');
+        const toggleText = toggleButton.querySelector('.toggle-text');
+        const toggleIcon = toggleButton.querySelector('.toggle-icon');
+        
+        if (apiDebugContent.classList.contains('hidden')) {
+            // Show API debug
+            apiDebugContent.classList.remove('hidden');
+            toggleText.textContent = 'Hide API Results';
+            toggleIcon.textContent = '▼';
+            toggleButton.classList.remove('expanded');
+        } else {
+            // Hide API debug
+            apiDebugContent.classList.add('hidden');
+            toggleText.textContent = 'Show API Results';
+            toggleIcon.textContent = '▶';
+            toggleButton.classList.add('expanded');
+        }
+    }
+
+    showApiDebugSection() {
+        const apiDebugSection = document.getElementById('apiDebugSection');
+        apiDebugSection.classList.remove('hidden');
+    }
+
+    updateApiDebugInfo(content) {
+        const apiDebugInfo = document.getElementById('apiDebugInfo');
+        apiDebugInfo.innerHTML = content;
     }
 
 }
