@@ -559,6 +559,17 @@ class LaurensList {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if API keys are available, otherwise use demo mode
+    if (TMDB_API_KEY === 'YOUR_TMDB_API_KEY' || GOOGLE_BOOKS_API_KEY === 'YOUR_GOOGLE_BOOKS_API_KEY') {
+        console.log('Running in demo mode. Please add your API keys to enable full functionality.');
+        
+        // Override search methods with demo versions
+        LaurensList.prototype.searchBook = DemoMode.searchBook;
+        LaurensList.prototype.searchMovie = DemoMode.searchMovie;
+    } else {
+        console.log('Running with real API data! TMDB and Google Books APIs are active.');
+    }
+    
     new LaurensList();
 });
 
@@ -730,13 +741,3 @@ class DemoMode {
     }
 }
 
-// Check if API keys are available, otherwise use demo mode
-if (TMDB_API_KEY === 'YOUR_TMDB_API_KEY' || GOOGLE_BOOKS_API_KEY === 'YOUR_GOOGLE_BOOKS_API_KEY') {
-    console.log('Running in demo mode. Please add your API keys to enable full functionality.');
-    
-    // Override search methods with demo versions
-    LaurensList.prototype.searchBook = DemoMode.searchBook;
-    LaurensList.prototype.searchMovie = DemoMode.searchMovie;
-} else {
-    console.log('Running with real API data! TMDB and Google Books APIs are active.');
-}
