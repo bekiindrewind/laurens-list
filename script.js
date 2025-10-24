@@ -630,11 +630,11 @@ class LaurensList {
             return null;
         }
         
-        try {
-            // Use a CORS proxy to access Goodreads
-            const corsProxy = 'https://api.allorigins.win/raw?url=';
-            const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent(query)}&search_type=books`;
-            const proxyUrl = corsProxy + encodeURIComponent(goodreadsUrl);
+            try {
+                // Use a CORS proxy to access Goodreads
+                const corsProxy = 'https://corsproxy.io/?';
+                const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent(query)}&search_type=books`;
+                const proxyUrl = corsProxy + encodeURIComponent(goodreadsUrl);
             
             console.log(`  🔍 Fetching from Goodreads via CORS proxy...`);
             console.log(`  🔗 Proxy URL: ${proxyUrl}`);
