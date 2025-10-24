@@ -831,6 +831,12 @@ class LaurensList {
                     console.log(`  📝 Using search result reviews (${reviewElements.length} snippets)`);
                 }
                 
+                console.log(`  📖 Goodreads final result:`);
+                console.log(`    Title: "${title}"`);
+                console.log(`    Author: "${author}"`);
+                console.log(`    Description length: ${detailedDescription.length} chars`);
+                console.log(`    Reviews length: ${reviews.length} chars`);
+                
                 return {
                     title: title,
                     author: author,
