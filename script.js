@@ -866,9 +866,19 @@ class LaurensList {
         for (let i = 1; i < results.length; i++) {
             const result = results[i];
             
-            // Use the longest description
+            // Use the longest description, but prioritize Goodreads for detailed content
             if (result.description && result.description.length > (combined.description?.length || 0)) {
-                combined.description = result.description;
+                // If this is from Goodreads and has substantial content, prioritize it
+                if (result.source === 'Goodreads' && result.description.length > 500) {
+                    console.log(`  📖 Prioritizing Goodreads description (${result.description.length} chars) over existing (${combined.description?.length || 0} chars)`);
+                    combined.description = result.description;
+                } else if (result.source !== 'Goodreads' || result.description.length <= 500) {
+                    // Only use non-Goodreads or short Goodreads descriptions if they're significantly longer
+                    if (result.description.length > (combined.description?.length || 0) + 100) {
+                        console.log(`  📖 Using longer description from ${result.source} (${result.description.length} chars)`);
+                        combined.description = result.description;
+                    }
+                }
             }
             
             // Combine content warnings
