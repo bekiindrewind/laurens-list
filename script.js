@@ -184,23 +184,26 @@ class LaurensList {
             this.showApiDebugSection();
             
             // Try multiple sources for comprehensive data
-            const [googleBooksData, openLibraryData, hardcoverData, dtddData] = await Promise.allSettled([
+            const [googleBooksData, openLibraryData, hardcoverData, dtddData, goodreadsData] = await Promise.allSettled([
                 this.searchGoogleBooks(query),
                 this.searchOpenLibrary(query),
                 this.searchHardcover(query),
-                this.searchDoesTheDogDie(query)
+                this.searchDoesTheDogDie(query),
+                this.searchGoodreads(query)
             ]);
 
             const googleResult = googleBooksData.status === 'fulfilled' ? googleBooksData.value : null;
             const openLibraryResult = openLibraryData.status === 'fulfilled' ? openLibraryData.value : null;
             const hardcoverResult = hardcoverData.status === 'fulfilled' ? hardcoverData.value : null;
             const dtddResult = dtddData.status === 'fulfilled' ? dtddData.value : null;
+            const goodreadsResult = goodreadsData.status === 'fulfilled' ? goodreadsData.value : null;
             
             console.log('📊 API Results Summary:');
             console.log(`  📚 Google Books: ${googleResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 Open Library: ${openLibraryResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📘 Hardcover: ${hardcoverResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  🐕 DoesTheDogDie: ${dtddResult ? '✅ Found' : '❌ No results'}`);
+            console.log(`  📖 Goodreads: ${goodreadsResult ? '✅ Found' : '❌ No results'}`);
             
             // Update API debug section with results
             let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
@@ -290,8 +293,29 @@ class LaurensList {
                 </div>`;
             }
             
+            if (goodreadsResult) {
+                console.log(`  📖 Goodreads Details:`, {
+                    title: goodreadsResult.title,
+                    author: goodreadsResult.author,
+                    reviewsLength: goodreadsResult.reviews?.length || 0,
+                    source: goodreadsResult.source
+                });
+                
+                debugContent += `<div class="api-result api-success">
+                    <strong>📖 Goodreads: ✅ Found</strong><br>
+                    Title: ${goodreadsResult.title}<br>
+                    Author: ${goodreadsResult.author}<br>
+                    Reviews Length: ${goodreadsResult.reviews?.length || 0} characters<br>
+                    Source: ${goodreadsResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>📖 Goodreads: ❌ No results</strong>
+                </div>`;
+            }
+            
             // Combine results from all APIs
-            const allResults = [googleResult, openLibraryResult, hardcoverResult, dtddResult].filter(Boolean);
+            const allResults = [googleResult, openLibraryResult, hardcoverResult, dtddResult, goodreadsResult].filter(Boolean);
             
             if (allResults.length === 0) {
                 console.log('❌ No results found from any API');
@@ -465,6 +489,12 @@ class LaurensList {
             return null;
         }
         
+        // Check if we're running from file:// protocol (CORS will block this)
+        if (window.location.protocol === 'file:') {
+            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
+            return null;
+        }
+        
         // Hardcover uses GraphQL API
         const graphqlQuery = {
             query: `
@@ -539,6 +569,12 @@ class LaurensList {
             return null;
         }
         
+        // Check if we're running from file:// protocol (CORS will block this)
+        if (window.location.protocol === 'file:') {
+            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
+            return null;
+        }
+        
         const url = `https://www.doesthedogdie.com/api/search?q=${encodeURIComponent(query)}&api_key=${DOESTHEDOGDIE_API_KEY}`;
         
         try {
@@ -582,6 +618,135 @@ class LaurensList {
         }
     }
 
+    async searchGoodreads(query) {
+        console.log(`📖 Searching Goodreads for: "${query}"`);
+        
+        // Check if we're running from file:// protocol (CORS will block this)
+        if (window.location.protocol === 'file:') {
+            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
+            return null;
+        }
+        
+        try {
+            // Use a CORS proxy to access Goodreads
+            const corsProxy = 'https://api.allorigins.win/raw?url=';
+            const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent(query)}&search_type=books`;
+            const proxyUrl = corsProxy + encodeURIComponent(goodreadsUrl);
+            
+            console.log(`  🔍 Fetching from Goodreads via CORS proxy...`);
+            console.log(`  🔗 Proxy URL: ${proxyUrl}`);
+            
+            const response = await fetch(proxyUrl);
+            const html = await response.text();
+            
+            console.log(`  📊 Goodreads HTML length: ${html.length} characters`);
+            
+            // Parse the HTML to extract book information
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Debug: Log the HTML structure to understand what we're getting
+            console.log(`  🔍 HTML contains 'searchResultItem': ${html.includes('searchResultItem')}`);
+            console.log(`  🔍 HTML contains 'bookTitle': ${html.includes('bookTitle')}`);
+            console.log(`  🔍 HTML contains 'authorName': ${html.includes('authorName')}`);
+            
+            // Try multiple selectors for book results
+            let bookElement = doc.querySelector('.searchResultItem') || 
+                            doc.querySelector('.searchResult') ||
+                            doc.querySelector('.bookContainer') ||
+                            doc.querySelector('[data-testid="book-item"]');
+            
+            // If no specific book element found, try to find any book-related content
+            if (!bookElement) {
+                console.log(`  🔍 Trying alternative selectors...`);
+                const allElements = doc.querySelectorAll('*');
+                for (let element of allElements) {
+                    if (element.textContent && element.textContent.toLowerCase().includes(query.toLowerCase())) {
+                        console.log(`  🔍 Found potential match: ${element.tagName} with text: "${element.textContent.substring(0, 100)}..."`);
+                        bookElement = element;
+                        break;
+                    }
+                }
+            }
+            
+            if (bookElement) {
+                console.log(`  📖 Found book element: ${bookElement.tagName}`);
+                
+                // Try multiple selectors for title
+                const titleElement = bookElement.querySelector('.bookTitle') ||
+                                   bookElement.querySelector('.book-title') ||
+                                   bookElement.querySelector('h3') ||
+                                   bookElement.querySelector('h2') ||
+                                   bookElement.querySelector('[data-testid="book-title"]');
+                
+                // Try multiple selectors for author
+                const authorElement = bookElement.querySelector('.authorName') ||
+                                    bookElement.querySelector('.author-name') ||
+                                    bookElement.querySelector('.author') ||
+                                    bookElement.querySelector('[data-testid="author-name"]');
+                
+                // Try multiple selectors for description
+                const descriptionElement = bookElement.querySelector('.readable') ||
+                                         bookElement.querySelector('.description') ||
+                                         bookElement.querySelector('.book-description') ||
+                                         bookElement.querySelector('p');
+                
+                const title = titleElement ? titleElement.textContent.trim() : 'Unknown Title';
+                const author = authorElement ? authorElement.textContent.trim() : 'Unknown Author';
+                const description = descriptionElement ? descriptionElement.textContent.trim() : '';
+                
+                console.log(`  📖 Goodreads found: ${title} by ${author}`);
+                console.log(`  📖 Description length: ${description.length}`);
+                
+                // Try to get reviews/comments
+                let reviews = '';
+                try {
+                    // Look for review snippets in the search results
+                    const reviewElements = bookElement.querySelectorAll('.reviewText, .review-text, .review, .comment');
+                    reviews = Array.from(reviewElements)
+                        .map(el => el.textContent.trim())
+                        .join(' ')
+                        .substring(0, 2000); // Limit to 2000 characters
+                    
+                    console.log(`  📝 Found ${reviewElements.length} review snippets`);
+                    
+                    // If no specific review elements, try to get any text content that might be reviews
+                    if (reviews.length === 0) {
+                        const allText = bookElement.textContent;
+                        if (allText.length > 500) {
+                            reviews = allText.substring(0, 2000);
+                            console.log(`  📝 Using general text content as reviews`);
+                        }
+                    }
+                } catch (e) {
+                    console.log(`  ⚠️ Could not extract reviews: ${e.message}`);
+                }
+                
+                return {
+                    title: title,
+                    author: author,
+                    description: description,
+                    plotSummary: '',
+                    reviews: reviews,
+                    contentWarnings: '',
+                    publishedDate: 'Unknown',
+                    pageCount: null,
+                    categories: [],
+                    type: 'book',
+                    source: 'Goodreads'
+                };
+            }
+            
+            console.log(`  📖 No book results found on Goodreads`);
+            console.log(`  🔍 HTML preview: ${html.substring(0, 500)}...`);
+            return null;
+            
+        } catch (error) {
+            console.error('Goodreads search error:', error);
+            return null;
+        }
+    }
+
     combineBookResults(results) {
         console.log(`🔗 Combining ${results.length} book results...`);
         
@@ -603,6 +768,15 @@ class LaurensList {
                     combined.contentWarnings += ' ' + result.contentWarnings;
                 } else {
                     combined.contentWarnings = result.contentWarnings;
+                }
+            }
+            
+            // Combine reviews (especially from Goodreads)
+            if (result.reviews) {
+                if (combined.reviews) {
+                    combined.reviews += ' ' + result.reviews;
+                } else {
+                    combined.reviews = result.reviews;
                 }
             }
             
@@ -728,7 +902,9 @@ class LaurensList {
             content.plotSummary || '',
             content.author || '',
             content.categories ? content.categories.join(' ') : '',
-            content.genres ? content.genres.join(' ') : ''
+            content.genres ? content.genres.join(' ') : '',
+            content.reviews || '', // Include Goodreads reviews
+            content.contentWarnings || '' // Include trigger warnings
         ].join(' ').toLowerCase();
 
         console.log(`📝 Analysis text length: ${textToAnalyze.length} characters`);
