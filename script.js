@@ -44,6 +44,7 @@ const CANCER_THEMED_CONTENT = {
         'a man called ove', 'anxious people', 'britt-marie was here',
         'the midnight library', 'matt haig', 'the seven husbands of evelyn hugo',
         'a monster calls', 'patrick ness', 'siobhan dowd',
+        'from ant to eagle', 'pediatric oncology', 'oncology unit',
         'taylor jenkins reid', 'the invisible life of addie larue', 'v.e. schwab',
         'the book thief', 'markus zusak', 'the kite runner', 'khaled hosseini',
         'the help', 'kathryn stockett', 'water for elephants', 'sara gruen',
