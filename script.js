@@ -1053,9 +1053,16 @@ class LaurensList {
                 const source = content.allSources[i];
                 console.log(`  🔍 Analyzing source ${i + 1}: ${source.source || 'Unknown'}`);
                 
+                // Use the combined description if this is the source that was prioritized
+                let descriptionToUse = source.description || '';
+                if (source.source === 'Goodreads' && content.description && content.description.length > 500) {
+                    console.log(`    📖 Using combined detailed description (${content.description.length} chars) for Goodreads analysis`);
+                    descriptionToUse = content.description;
+                }
+                
                 const sourceText = [
                     source.title || '',
-                    source.description || '',
+                    descriptionToUse,
                     source.plotSummary || '',
                     source.author || '',
                     source.categories ? source.categories.join(' ') : '',
