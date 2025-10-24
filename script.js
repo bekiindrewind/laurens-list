@@ -1,4 +1,4 @@
-// API Keys - Injected at build time from environment variables
+ // API Keys - Injected at build time from environment variables
 let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
 let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
 let HARDCOVER_BEARER_TOKEN = 'YOUR_HARDCOVER_BEARER_TOKEN';
@@ -1362,6 +1362,8 @@ function initializeApp() {
     console.log('🔍 Checking API keys...');
     console.log('TMDB_API_KEY:', TMDB_API_KEY);
     console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY);
+    console.log('HARDCOVER_BEARER_TOKEN:', HARDCOVER_BEARER_TOKEN);
+    console.log('DOESTHEDOGDIE_API_KEY:', DOESTHEDOGDIE_API_KEY);
     
     if (TMDB_API_KEY !== 'YOUR_TMDB_API_KEY' && GOOGLE_BOOKS_API_KEY !== 'YOUR_GOOGLE_BOOKS_API_KEY') {
         console.log('Running with real API data! TMDB and Google Books APIs are active.');
