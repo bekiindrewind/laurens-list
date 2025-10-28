@@ -18,5 +18,5 @@ COPY . .
 EXPOSE 8080 3000
 
 # Run both Python HTTP server and API proxy
-CMD ["sh", "-c", "python3 -m http.server 8080 & node api-proxy.js"]
+CMD ["sh", "-c", "python3 -m http.server 8080 & node api-proxy.js & wait"]
 
