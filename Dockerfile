@@ -3,7 +3,7 @@ FROM node:18-slim
 WORKDIR /app
 
 # Install Python for http.server
-RUN apt-get update && apt-get install -y python3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for better caching
 COPY package*.json ./
