@@ -63,7 +63,8 @@ const CANCER_THEMED_CONTENT = {
         'the help', 'kathryn stockett', 'water for elephants', 'sara gruen',
         'the time traveler\'s wife', 'audrey niffenegger', 'the lovely bones',
         'alice sebold', 'the curious incident of the dog in the night-time',
-        'mark haddon', 'life of pi', 'yann martel'
+        'mark haddon', 'life of pi', 'yann martel',
+        'all the colors of the dark', 'all the colours of the dark', 'chris whitaker'
     ],
     movies: [
         // Popular cancer-themed movies
