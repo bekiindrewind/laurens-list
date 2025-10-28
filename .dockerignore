@@ -4,6 +4,5 @@ node_modules
 *.md
 config.js
 config.example.js
-config.production.js
 config.hostinger.js
 
