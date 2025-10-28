@@ -63,7 +63,8 @@ const CANCER_THEMED_CONTENT = {
         'the help', 'kathryn stockett', 'water for elephants', 'sara gruen',
         'the time traveler\'s wife', 'audrey niffenegger', 'the lovely bones',
         'alice sebold', 'the curious incident of the dog in the night-time',
-        'mark haddon', 'life of pi', 'yann martel'
+        'mark haddon', 'life of pi', 'yann martel',
+        'all the colors of the dark', 'all the colours of the dark', 'chris whitaker'
     ],
     movies: [
         // Popular cancer-themed movies
@@ -1324,6 +1325,45 @@ class LaurensList {
                             
                             console.log(`  📝 Combined reviews length: ${reviews.length} chars`);
                             console.log(`  📝 Reviews preview: "${reviews.substring(0, 200)}..."`);
+                        }
+                        
+                        // Also search the entire page HTML for cancer-related content (including blurred/spoiler text)
+                        // This will catch content that Goodreads hides with CSS blur
+                        const pageText = bookPageDoc.body.textContent || bookPageDoc.body.innerText || '';
+                        const cancerTerms = [
+                            // Direct cancer terms
+                            'cancer', 'tumor', 'tumour', 'malignancy', 'malignant', 'carcinoma', 'sarcoma', 'lymphoma', 'leukemia', 'leukaemia',
+                            'melanoma', 'metastasis', 'metastatic', 'cancerous', 'cancer cells', 'cancer diagnosis', 'cancer treatment',
+                            
+                            // Cancer types
+                            'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer', 'brain cancer',
+                            'ovarian cancer', 'cervical cancer', 'liver cancer', 'kidney cancer', 'bladder cancer', 'skin cancer',
+                            'bone cancer', 'blood cancer', 'throat cancer', 'stomach cancer', 'esophageal cancer', 'rectal cancer',
+                            
+                            // Medical terms
+                            'chemotherapy', 'chemo', 'radiation', 'radiotherapy', 'oncology', 'oncologist', 'biopsy', 'mastectomy',
+                            'lumpectomy', 'hysterectomy', 'prostatectomy', 'colostomy', 'tracheostomy', 'immunotherapy',
+                            'targeted therapy', 'hormone therapy', 'stem cell transplant', 'bone marrow transplant',
+                            
+                            // Symptoms and progression
+                            'terminal', 'terminal illness', 'terminal cancer', 'stage 4', 'stage four', 'advanced cancer',
+                            'metastasized', 'spread to', 'recurrence', 'relapse', 'remission', 'palliative care',
+                            'hospice', 'end of life', 'dying from', 'died from', 'death from cancer'
+                        ];
+                        
+                        const pageTextLower = pageText.toLowerCase();
+                        const foundCancerTerms = cancerTerms.filter(term => pageTextLower.includes(term));
+                        
+                        if (foundCancerTerms.length > 0 && !reviews.toLowerCase().includes(foundCancerTerms[0])) {
+                            console.log(`  ⚠️ Found cancer-related content in full page text (including blurred content): ${foundCancerTerms.join(', ')}`);
+                            // Append cancer-related content from full page to reviews
+                            const contextStart = pageTextLower.indexOf(foundCancerTerms[0]);
+                            const contextExtract = pageText.substring(
+                                Math.max(0, contextStart - 200),
+                                Math.min(pageText.length, contextStart + 500)
+                            );
+                            console.log(`  📝 Extracted context: "${contextExtract}..."`);
+                            reviews = reviews + ' ' + contextExtract;
                         }
                     }
                 } catch (e) {
