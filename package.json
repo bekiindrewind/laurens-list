@@ -1,16 +1,14 @@
 {
   "name": "laurens-list",
   "version": "1.0.0",
-  "description": "Trigger warning website for books and movies",
+  "description": "Lauren's List - Trigger warning website for books and movies",
+  "main": "api-proxy.js",
   "scripts": {
-    "build": "node build.js"
-  },
-  "devDependencies": {
-    "fs": "^0.0.1-security"
+    "proxy": "node api-proxy.js"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "http-proxy-middleware": "^3.0.5"
+    "node-fetch": "^2.7.0"
   }
 }

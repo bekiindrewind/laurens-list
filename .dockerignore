@@ -5,4 +5,5 @@ node_modules
 config.js
 config.example.js
 config.hostinger.js
+npm-debug.log
 

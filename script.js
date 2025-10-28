@@ -711,12 +711,11 @@ class LaurensList {
         }
         
         try {
-            console.log(`  🔍 Fetching from Hardcover GraphQL API...`);
-            const response = await fetch('https://hardcover.app/api/graphql', {
+            console.log(`  🔍 Fetching from Hardcover GraphQL API via proxy...`);
+            const response = await fetch('/api/hardcover', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${HARDCOVER_BEARER_TOKEN}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(graphqlQuery)
             });
@@ -777,9 +776,9 @@ class LaurensList {
         }
         
         try {
-            console.log(`  🔍 Fetching from DoesTheDogDie...`);
-            console.log(`  🔗 URL: ${url}`);
-            const response = await fetch(url);
+            console.log(`  🔍 Fetching from DoesTheDogDie via proxy...`);
+            console.log(`  🔗 URL: /api/doesthedogdie?q=${encodeURIComponent(searchQuery)}`);
+            const response = await fetch(`/api/doesthedogdie?q=${encodeURIComponent(searchQuery)}`);
             
             if (!response.ok) {
                 console.log(`  🐕 DoesTheDogDie: API request failed with status ${response.status}`);
