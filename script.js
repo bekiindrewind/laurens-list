@@ -64,7 +64,7 @@ const CANCER_THEMED_CONTENT = {
         'the time traveler\'s wife', 'audrey niffenegger', 'the lovely bones',
         'alice sebold', 'the curious incident of the dog in the night-time',
         'mark haddon', 'life of pi', 'yann martel',
-        'all the colors of the dark', 'all the colours of the dark', 'chris whitaker'
+        'all the colors of the dark', 'all the colours of the dark', 'chris whitaker', 'colors of the dark'
     ],
     movies: [
         // Popular cancer-themed movies
