@@ -1327,7 +1327,7 @@ class LaurensList {
                             console.log(`  📝 Reviews preview: "${reviews.substring(0, 200)}..."`);
                         }
                         
-                        // Also search the entire page HTML for cancer-related content (including blurred/spoiler text)
+                        // ALWAYS search the entire page HTML for cancer-related content (including blurred/spoiler text)
                         // This will catch content that Goodreads hides with CSS blur
                         const pageText = bookPageDoc.body.textContent || bookPageDoc.body.innerText || '';
                         const cancerTerms = [
@@ -1354,7 +1354,7 @@ class LaurensList {
                         const pageTextLower = pageText.toLowerCase();
                         const foundCancerTerms = cancerTerms.filter(term => pageTextLower.includes(term));
                         
-                        if (foundCancerTerms.length > 0 && !reviews.toLowerCase().includes(foundCancerTerms[0])) {
+                        if (foundCancerTerms.length > 0) {
                             console.log(`  ⚠️ Found cancer-related content in full page text (including blurred content): ${foundCancerTerms.join(', ')}`);
                             // Append cancer-related content from full page to reviews
                             const contextStart = pageTextLower.indexOf(foundCancerTerms[0]);
@@ -1363,6 +1363,7 @@ class LaurensList {
                                 Math.min(pageText.length, contextStart + 500)
                             );
                             console.log(`  📝 Extracted context: "${contextExtract}..."`);
+                            if (!reviews) reviews = '';
                             reviews = reviews + ' ' + contextExtract;
                         }
                     }
