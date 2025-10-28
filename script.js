@@ -2242,6 +2242,11 @@ class LaurensList {
         // Update source to reflect multiple sources
         combined.source = results.map(r => r.source).join(', ');
         
+        // Remove "Summary of" prefixes from the final title
+        if (combined.title) {
+            combined.title = combined.title.replace(/^summary of/i, '').trim();
+        }
+        
         console.log(`  📊 Combined result:`, {
             title: combined.title,
             author: combined.author,
