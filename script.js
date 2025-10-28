@@ -1329,7 +1329,9 @@ class LaurensList {
                         
                         // ALWAYS search the entire page HTML for cancer-related content (including blurred/spoiler text)
                         // This will catch content that Goodreads hides with CSS blur
+                        console.log(`  🔍 Starting blur content search on full page text...`);
                         const pageText = bookPageDoc.body.textContent || bookPageDoc.body.innerText || '';
+                        console.log(`  📊 Page text length: ${pageText.length} characters`);
                         const cancerTerms = [
                             // Direct cancer terms
                             'cancer', 'tumor', 'tumour', 'malignancy', 'malignant', 'carcinoma', 'sarcoma', 'lymphoma', 'leukemia', 'leukaemia',
