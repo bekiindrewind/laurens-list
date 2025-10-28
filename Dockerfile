@@ -1,0 +1,13 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy all files
+COPY . .
+
+# Expose port 8080
+EXPOSE 8080
+
+# Run the Python HTTP server
+CMD ["python3", "-m", "http.server", "8080"]
+
