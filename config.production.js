@@ -1,9 +1,8 @@
-// Production config for GitHub Pages
-// This file is safe to commit and contains placeholder API keys
-// Users need to replace these with their own API keys for local development
+// Production config for Hostinger VPS
+// This file contains real API keys for the live site
 const CONFIG = {
-    TMDB_API_KEY: 'YOUR_TMDB_API_KEY',
-    GOOGLE_BOOKS_API_KEY: 'YOUR_GOOGLE_BOOKS_API_KEY',
-    HARDCOVER_BEARER_TOKEN: 'YOUR_HARDCOVER_BEARER_TOKEN',
-    DOESTHEDOGDIE_API_KEY: 'YOUR_DTDD_API_KEY'
+    TMDB_API_KEY: '58223110ff42b7ab06b12b3460897091',
+    GOOGLE_BOOKS_API_KEY: 'AIzaSyA364ogCHimNNjIbbCKv7Tnsxx6eQ35IKw',
+    HARDCOVER_BEARER_TOKEN: 'eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJIYXJkY292ZXIiLCJ2ZXJzaW9uIjoiOCIsImp0aSI6IjY3NzAxOTVjLWUxZTItNGM5NS1hNjUyLTgxOTI2MTIxYjIzZCIsImFwcGxpY2F0aW9uSWQiOjIsInN1YiI6IjUxNTk2IiwiYXVkIjoiMSIsImlkIjoiNTE1OTYiLCJsb2dnZWRJbiI6dHJ1ZSwiaWF0IjoxNzYxMjY2MzQyLCJleHAiOjE3OTI4MDIzNDIsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtYWxsb3dlZC1yb2xlcyI6WyJ1c2VyIl0sIngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6InVzZXIiLCJ4LWhhc3VyYS1yb2xlIjoidXNlciIsIlgtaGFzdXJhLXVzZXItaWQiOiI1MTU5NiJ9LCJ1c2VyIjp7ImlkIjo1MTU5Nn19.j32_IEwRbU3qq4l7E3-7kvcvJminBFdRbousSM4z7I8',
+    DOESTHEDOGDIE_API_KEY: 'fb1ce9d557e74a9544cf0385263efa30'
 };
