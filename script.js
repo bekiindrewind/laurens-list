@@ -2643,14 +2643,21 @@ class LaurensList {
         const normalizedTitle = title.toLowerCase().trim();
         const contentList = type === 'book' ? CANCER_THEMED_CONTENT.books : CANCER_THEMED_CONTENT.movies;
         
+        // Try to match against the original title (before "Summary" prefixes, etc)
+        const cleanTitle = normalizedTitle.replace(/^(summary of|book:|the book:)/i, '').trim();
+        
         const isKnownCancer = contentList.some(knownTitle => 
-            normalizedTitle.includes(knownTitle) || knownTitle.includes(normalizedTitle)
+            normalizedTitle.includes(knownTitle) || 
+            knownTitle.includes(normalizedTitle) ||
+            cleanTitle.includes(knownTitle) ||
+            knownTitle.includes(cleanTitle)
         );
 
         return {
             isKnownCancer: isKnownCancer,
             matchedTitle: isKnownCancer ? contentList.find(knownTitle => 
-                normalizedTitle.includes(knownTitle) || knownTitle.includes(normalizedTitle)
+                normalizedTitle.includes(knownTitle) || knownTitle.includes(normalizedTitle) ||
+                cleanTitle.includes(knownTitle) || knownTitle.includes(cleanTitle)
             ) : null
         };
     }
