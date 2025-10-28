@@ -2244,7 +2244,8 @@ class LaurensList {
         
         // Remove "Summary of" prefixes from the final title
         if (combined.title) {
-            combined.title = combined.title.replace(/^summary of/i, '').trim();
+            // Remove "Summary of X's Y" pattern to get just "Y"
+            combined.title = combined.title.replace(/^summary of [^']+'s /i, '').trim();
         }
         
         console.log(`  📊 Combined result:`, {
