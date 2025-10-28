@@ -2212,8 +2212,14 @@ class LaurensList {
                     const currentMatch = currentTitleLower.includes(queryLower) || queryLower.includes(currentTitleLower);
                     const resultMatch = resultTitleLower.includes(queryLower) || queryLower.includes(resultTitleLower);
                     
-                    // If result is a better match, use it
-                    if (resultMatch && !currentMatch) {
+                    // Also prefer shorter, more specific titles (avoid "Summary of..." patterns)
+                    const currentIsSummary = currentTitleLower.match(/^summary of/i);
+                    const resultIsSummary = resultTitleLower.match(/^summary of/i);
+                    
+                    // If result is a better match AND (both are summaries or neither is), use it
+                    // OR if current is a summary and result is not, prefer result
+                    if ((resultMatch && !currentMatch) || 
+                        (currentIsSummary && !resultIsSummary && resultMatch)) {
                         console.log(`  📖 Using better title match: "${result.title}" over "${combined.title}"`);
                         combined.title = result.title;
                     }
