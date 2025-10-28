@@ -1367,7 +1367,11 @@ class LaurensList {
                             console.log(`  📝 Extracted context: "${contextExtract}..."`);
                             if (!reviews) reviews = '';
                             reviews = reviews + ' ' + contextExtract;
+                        } else {
+                            console.log(`  ℹ️ No cancer terms found in full page text`);
                         }
+                    } else {
+                        console.log(`  ⚠️ bookPageDoc.body not available for blur search`);
                     }
                 } catch (e) {
                     console.log(`  ⚠️ Could not fetch detailed book page: ${e.message}`);
