@@ -306,7 +306,6 @@ class LaurensList {
             console.log(`  📚 Wikipedia: ${wikipediaResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 StoryGraph: ${storyGraphResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  🌐 Web Search: ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ No results'}`);
-            console.log(`  📘 Hardcover: ⚠️ Not available (blocked by Cloudflare protection)`);
             
             // Update API debug section with results
             let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
@@ -353,11 +352,6 @@ class LaurensList {
                     <strong>📖 Open Library: ❌ No results</strong>
                 </div>`;
             }
-            
-            debugContent += `<div class="api-result api-no-results">
-                <strong>📘 Hardcover: ⚠️ Not available</strong><br>
-                <small>Blocked by Cloudflare protection - server-side requests cannot bypass this</small>
-            </div>`;
             
             if (dtddResult) {
                 console.log(`  🐕 DoesTheDogDie Details:`, {
