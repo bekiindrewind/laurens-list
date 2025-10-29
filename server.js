@@ -17,38 +17,10 @@ app.use((req, res, next) => {
 
 // Load API keys from config
 const config = require('./config.production.js');
-const HARDCOVER_BEARER_TOKEN = config.CONFIG.HARDCOVER_BEARER_TOKEN || process.env.HARDCOVER_BEARER_TOKEN;
 const DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY || process.env.DOESTHEDOGDIE_API_KEY;
 
-// Hardcover proxy endpoint
-app.post('/api/hardcover', async (req, res) => {
-    try {
-        console.log('Proxy: Receiving Hardcover request');
-        const response = await fetch('https://hardcover.app/api/graphql', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${HARDCOVER_BEARER_TOKEN}`
-            },
-            body: JSON.stringify(req.body)
-        });
-        
-        const text = await response.text();
-        console.log('Proxy: Hardcover response status:', response.status);
-        console.log('Proxy: Hardcover response preview:', text.substring(0, 200));
-        
-        try {
-            const data = JSON.parse(text);
-            res.json(data);
-        } catch (parseError) {
-            console.error('Failed to parse response as JSON:', parseError);
-            res.status(500).json({ error: 'Invalid JSON response from Hardcover', rawResponse: text.substring(0, 200) });
-        }
-    } catch (error) {
-        console.error('Hardcover proxy error:', error);
-        res.status(500).json({ error: 'Failed to fetch from Hardcover', details: error.message });
-    }
-});
+// Note: Hardcover API removed - blocked by Cloudflare protection
+// Server-side requests cannot bypass Cloudflare's JavaScript challenge
 
 // DoesTheDogDie proxy endpoint
 app.get('/api/doesthedogdie', async (req, res) => {

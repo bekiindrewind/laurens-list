@@ -1,7 +1,6 @@
  // API Keys - Injected at build time from environment variables
 let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
 let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
-let HARDCOVER_BEARER_TOKEN = 'YOUR_HARDCOVER_BEARER_TOKEN';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
 // Load API keys from config.js if available (for local development)
@@ -12,7 +11,6 @@ if (typeof CONFIG !== 'undefined') {
     // Override with config.js values for local development
     TMDB_API_KEY = CONFIG.TMDB_API_KEY;
     GOOGLE_BOOKS_API_KEY = CONFIG.GOOGLE_BOOKS_API_KEY;
-    HARDCOVER_BEARER_TOKEN = CONFIG.HARDCOVER_BEARER_TOKEN;
     DOESTHEDOGDIE_API_KEY = CONFIG.DOESTHEDOGDIE_API_KEY;
     console.log('✅ API keys loaded from config.js (local development)');
 } else {
@@ -282,10 +280,9 @@ class LaurensList {
             this.showApiDebugSection();
             
             // Try multiple sources for comprehensive data
-            const [googleBooksData, openLibraryData, hardcoverData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData] = await Promise.allSettled([
+            const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData] = await Promise.allSettled([
                 this.searchGoogleBooks(query, exactMatch),
                 this.searchOpenLibrary(query, exactMatch),
-                this.searchHardcover(query, exactMatch),
                 this.searchDoesTheDogDie(query, exactMatch),
                 this.searchGoodreads(query, exactMatch),
                 this.searchWikipedia(query, exactMatch),
@@ -295,7 +292,6 @@ class LaurensList {
 
             const googleResult = googleBooksData.status === 'fulfilled' ? googleBooksData.value : null;
             const openLibraryResult = openLibraryData.status === 'fulfilled' ? openLibraryData.value : null;
-            const hardcoverResult = hardcoverData.status === 'fulfilled' ? hardcoverData.value : null;
             const dtddResult = dtddData.status === 'fulfilled' ? dtddData.value : null;
             const goodreadsResult = goodreadsData.status === 'fulfilled' ? goodreadsData.value : null;
             const wikipediaResult = wikipediaData.status === 'fulfilled' ? wikipediaData.value : null;
@@ -305,12 +301,12 @@ class LaurensList {
             console.log('📊 API Results Summary:');
             console.log(`  📚 Google Books: ${googleResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 Open Library: ${openLibraryResult ? '✅ Found' : '❌ No results'}`);
-            console.log(`  📘 Hardcover: ${hardcoverResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  🐕 DoesTheDogDie: ${dtddResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 Goodreads: ${goodreadsResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📚 Wikipedia: ${wikipediaResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 StoryGraph: ${storyGraphResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  🌐 Web Search: ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ No results'}`);
+            console.log(`  📘 Hardcover: ⚠️ Not available (blocked by Cloudflare protection)`);
             
             // Update API debug section with results
             let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
@@ -358,26 +354,10 @@ class LaurensList {
                 </div>`;
             }
             
-            if (hardcoverResult) {
-                console.log(`  📘 Hardcover Details:`, {
-                    title: hardcoverResult.title,
-                    author: hardcoverResult.author,
-                    descriptionLength: hardcoverResult.description?.length || 0,
-                    source: hardcoverResult.source
-                });
-                
-                debugContent += `<div class="api-result api-success">
-                    <strong>📘 Hardcover: ✅ Found</strong><br>
-                    Title: ${hardcoverResult.title}<br>
-                    Author: ${hardcoverResult.author}<br>
-                    Description Length: ${hardcoverResult.description?.length || 0} characters<br>
-                    Source: ${hardcoverResult.source}
-                </div>`;
-            } else {
-                debugContent += `<div class="api-result api-no-results">
-                    <strong>📘 Hardcover: ❌ No results</strong>
-                </div>`;
-            }
+            debugContent += `<div class="api-result api-no-results">
+                <strong>📘 Hardcover: ⚠️ Not available</strong><br>
+                <small>Blocked by Cloudflare protection - server-side requests cannot bypass this</small>
+            </div>`;
             
             if (dtddResult) {
                 console.log(`  🐕 DoesTheDogDie Details:`, {
@@ -451,7 +431,7 @@ class LaurensList {
             }
             
             // Combine results from all APIs
-            const allResults = [googleResult, openLibraryResult, hardcoverResult, dtddResult, goodreadsResult, wikipediaResult, storyGraphResult].filter(Boolean);
+            const allResults = [googleResult, openLibraryResult, dtddResult, goodreadsResult, wikipediaResult, storyGraphResult].filter(Boolean);
             
             if (allResults.length === 0) {
                 console.log('❌ No results found from any API');
@@ -661,95 +641,6 @@ class LaurensList {
             return null;
         } catch (error) {
             console.error('Open Library search error:', error);
-            return null;
-        }
-    }
-
-    async searchHardcover(query, exactMatch = false) {
-        console.log(`📘 Searching Hardcover for: "${query}"`);
-        
-        if (HARDCOVER_BEARER_TOKEN === 'YOUR_HARDCOVER_BEARER_TOKEN' || !HARDCOVER_BEARER_TOKEN) {
-            console.log(`  ⚠️ Hardcover API key not configured`);
-            return null;
-        }
-        
-        // Check if we're running from file:// protocol (CORS will block this)
-        if (window.location.protocol === 'file:') {
-            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
-            return null;
-        }
-        
-        // Hardcover uses GraphQL API
-        const searchQuery = exactMatch ? `"${query}"` : query;
-        const graphqlQuery = {
-            query: `
-                query SearchBooks($query: String!) {
-                    searchBooks(query: $query, limit: 1) {
-                        id
-                        title
-                        authors {
-                            name
-                        }
-                        description
-                        publishedDate
-                        pageCount
-                        genres
-                        contentWarnings {
-                            category
-                            description
-                        }
-                    }
-                }
-            `,
-            variables: {
-                query: searchQuery
-            }
-        };
-        
-        if (exactMatch) {
-            console.log(`  🔍 Exact match mode: Using quoted search`);
-        }
-        
-        try {
-            console.log(`  🔍 Fetching from Hardcover via proxy...`);
-            const response = await fetch('/api/hardcover', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(graphqlQuery)
-            });
-            
-            if (!response.ok) {
-                console.log(`  📘 Hardcover: API request failed with status ${response.status}`);
-                return null;
-            }
-            
-            const data = await response.json();
-            console.log(`  📊 Hardcover response:`, data);
-            
-            if (data.data && data.data.searchBooks && data.data.searchBooks.length > 0) {
-                const book = data.data.searchBooks[0];
-                console.log(`  📘 Hardcover found: ${book.title}`);
-                
-                return {
-                    title: book.title || 'Unknown Title',
-                    author: book.authors && book.authors.length > 0 ? book.authors.map(a => a.name).join(', ') : 'Unknown Author',
-                    description: book.description || '',
-                    plotSummary: '',
-                    reviews: '',
-                    contentWarnings: book.contentWarnings && book.contentWarnings.length > 0 ? 
-                        book.contentWarnings.map(cw => `${cw.category}: ${cw.description}`).join(' ') : '',
-                    publishedDate: book.publishedDate || 'Unknown',
-                    pageCount: book.pageCount || null,
-                    categories: book.genres || [],
-                    type: 'book',
-                    source: 'Hardcover'
-                };
-            }
-            return null;
-        } catch (error) {
-            console.error('Hardcover search error:', error);
             return null;
         }
     }
@@ -2851,14 +2742,10 @@ function initializeApp() {
     console.log('🔍 Checking API keys...');
     console.log('TMDB_API_KEY:', TMDB_API_KEY);
     console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY);
-    console.log('HARDCOVER_BEARER_TOKEN:', HARDCOVER_BEARER_TOKEN);
     console.log('DOESTHEDOGDIE_API_KEY:', DOESTHEDOGDIE_API_KEY);
     
     if (TMDB_API_KEY !== 'YOUR_TMDB_API_KEY' && GOOGLE_BOOKS_API_KEY !== 'YOUR_GOOGLE_BOOKS_API_KEY') {
         console.log('Running with real API data! TMDB and Google Books APIs are active.');
-        if (HARDCOVER_BEARER_TOKEN !== 'YOUR_HARDCOVER_BEARER_TOKEN') {
-            console.log('Hardcover API is also active for enhanced book data.');
-        }
         if (DOESTHEDOGDIE_API_KEY !== 'YOUR_DTDD_API_KEY') {
             console.log('DoesTheDogDie API is active for comprehensive trigger warnings.');
         }
