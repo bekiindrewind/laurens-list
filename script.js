@@ -770,21 +770,16 @@ class LaurensList {
         }
         
         const searchQuery = exactMatch ? `"${query}"` : query;
-        const url = `https://www.doesthedogdie.com/dddsearch?q=${encodeURIComponent(searchQuery)}`;
+        const url = `/api/doesthedogdie?q=${encodeURIComponent(searchQuery)}`;
         
         if (exactMatch) {
             console.log(`  🔍 Exact match mode: Using quoted search`);
         }
         
         try {
-            console.log(`  🔍 Fetching from DoesTheDogDie...`);
+            console.log(`  🔍 Fetching from DoesTheDogDie via proxy...`);
             console.log(`  🔗 URL: ${url}`);
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-API-KEY': DOESTHEDOGDIE_API_KEY
-                }
-            });
+            const response = await fetch(url);
             
             if (!response.ok) {
                 console.log(`  🐕 DoesTheDogDie: API request failed with status ${response.status}`);
