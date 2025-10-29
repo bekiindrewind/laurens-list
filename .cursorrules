@@ -1,5 +1,12 @@
 # Lauren's List - Cursor Rules
 
+## Development Workflow
+
+- **Always prefer local development over remote editing**: When possible, make changes locally, commit to git, and push to servers rather than manually editing remote files via SSH (nano, vim, etc.)
+- This ensures: version control, cleaner git history, easier rollbacks, and ability to review changes before deploying
+- Only edit remote files directly when absolutely necessary (emergency fixes, config files that can't be committed, etc.)
+- When suggesting fixes for remote servers, prioritize solutions that involve: local changes → git commit → git push → pull on server
+
 ## API Integration Rules
 
 When integrating or fixing API issues:
