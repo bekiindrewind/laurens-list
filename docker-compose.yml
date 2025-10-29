@@ -58,6 +58,8 @@ services:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
     restart: always
+    ports:
+      - "8080:8080"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.laurenslist.rule=Host(`srv1010721.hstgr.cloud`)"
