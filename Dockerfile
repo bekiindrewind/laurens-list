@@ -14,9 +14,12 @@ RUN npm install
 # Copy all files
 COPY . .
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Expose ports 8080 (HTTP server) and 3000 (API proxy)
 EXPOSE 8080 3000
 
-# Run both Python HTTP server and API proxy
-CMD ["sh", "-c", "python3 -m http.server 8080 & node api-proxy.js & wait"]
+# Run the start script
+CMD ["./start.sh"]
 
