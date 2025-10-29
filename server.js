@@ -9,6 +9,12 @@ const PORT = 8080;
 app.use(cors());
 app.use(express.json());
 
+// Debug middleware - log all requests
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+});
+
 // Load API keys from config
 const config = require('./config.production.js');
 const HARDCOVER_BEARER_TOKEN = config.CONFIG.HARDCOVER_BEARER_TOKEN || process.env.HARDCOVER_BEARER_TOKEN;
@@ -76,11 +82,19 @@ app.get('/api/doesthedogdie', async (req, res) => {
     }
 });
 
-// Serve static files from the current directory
-app.use(express.static(__dirname));
+// Serve static files from the current directory (CSS, JS, images, etc.)
+app.use(express.static(__dirname, {
+    index: false // Don't serve index.html automatically, let routes handle it
+}));
 
-// Catch-all for index.html
-app.get('*', (req, res) => {
+// Explicit route for root
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Catch-all for all other routes (except API) - must be last
+app.get(/^(?!\/api).*/, (req, res) => {
+    // Serve index.html for all non-API routes (SPA routing)
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
