@@ -11,8 +11,8 @@ app.use(express.json());
 
 // Load API keys from config
 const config = require('./config.production.js');
-const HARDCOVER_BEARER_TOKEN = config.CONFIG.HARDCOVER_BEARER_TOKEN;
-const DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY;
+const HARDCOVER_BEARER_TOKEN = config.CONFIG.HARDCOVER_BEARER_TOKEN || process.env.HARDCOVER_BEARER_TOKEN;
+const DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY || process.env.DOESTHEDOGDIE_API_KEY;
 
 // Hardcover proxy endpoint
 app.post('/api/hardcover', async (req, res) => {
