@@ -1,0 +1,24 @@
+# Lauren's List - Cursor Rules
+
+## API Integration Rules
+
+When integrating or fixing API issues:
+1. **ALWAYS find and read the official API documentation first** before trying various approaches
+2. **Verify the correct endpoint URLs, request methods (GET/POST/PUT/DELETE), and required headers**
+3. **Check the actual response format from the API** rather than assuming it matches our code
+4. **Use the API documentation as the source of truth**, not guesswork or assumptions
+5. **Test with simple examples from the documentation** before implementing complex integrations
+
+## Code Quality
+
+- Keep implementations simple and straightforward
+- Avoid over-engineering solutions
+- When something doesn't work, revert and try a different approach based on documentation
+- Prefer checking documentation over trial-and-error
+
+## Testing
+
+- Always test API integrations with real requests and verify responses match documentation
+- Log API responses to understand actual data structures
+- When responses don't match expectations, check the documentation first
+
