@@ -30,11 +30,20 @@ app.post('/api/hardcover', async (req, res) => {
             body: JSON.stringify(req.body)
         });
         
-        const data = await response.json();
-        res.json(data);
+        const text = await response.text();
+        console.log('Hardcover response status:', response.status);
+        console.log('Hardcover response text:', text.substring(0, 200));
+        
+        try {
+            const data = JSON.parse(text);
+            res.json(data);
+        } catch (parseError) {
+            console.error('Failed to parse response as JSON:', parseError);
+            res.status(500).json({ error: 'Invalid JSON response from Hardcover', rawResponse: text.substring(0, 200) });
+        }
     } catch (error) {
         console.error('Hardcover proxy error:', error);
-        res.status(500).json({ error: 'Failed to fetch from Hardcover' });
+        res.status(500).json({ error: 'Failed to fetch from Hardcover', details: error.message });
     }
 });
 
@@ -44,15 +53,25 @@ app.get('/api/doesthedogdie', async (req, res) => {
         const query = req.query.q;
         const apiKey = CONFIG.DOESTHEDOGDIE_API_KEY;
         
-        const response = await fetch(
-            `https://www.doesthedogdie.com/api/search?q=${encodeURIComponent(query)}&api_key=${apiKey}`
-        );
+        const url = `https://www.doesthedogdie.com/api/search?q=${encodeURIComponent(query)}&api_key=${apiKey}`;
+        console.log('Fetching from DoesTheDogDie:', url);
         
-        const data = await response.json();
-        res.json(data);
+        const response = await fetch(url);
+        const text = await response.text();
+        
+        console.log('DoesTheDogDie response status:', response.status);
+        console.log('DoesTheDogDie response text:', text.substring(0, 200));
+        
+        try {
+            const data = JSON.parse(text);
+            res.json(data);
+        } catch (parseError) {
+            console.error('Failed to parse response as JSON:', parseError);
+            res.status(500).json({ error: 'Invalid JSON response from DoesTheDogDie', rawResponse: text.substring(0, 200) });
+        }
     } catch (error) {
         console.error('DoesTheDogDie proxy error:', error);
-        res.status(500).json({ error: 'Failed to fetch from DoesTheDogDie' });
+        res.status(500).json({ error: 'Failed to fetch from DoesTheDogDie', details: error.message });
     }
 });
 
