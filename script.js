@@ -283,7 +283,7 @@ class LaurensList {
             const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData] = await Promise.allSettled([
                 this.searchGoogleBooks(query, exactMatch),
                 this.searchOpenLibrary(query, exactMatch),
-                this.searchDoesTheDogDie(query, exactMatch),
+                this.searchDoesTheDogDie(query, exactMatch, 'book'),
                 this.searchGoodreads(query, exactMatch),
                 this.searchWikipedia(query, exactMatch),
                 this.searchStoryGraph(query, exactMatch),
@@ -639,8 +639,8 @@ class LaurensList {
         }
     }
 
-    async searchDoesTheDogDie(query, exactMatch = false) {
-        console.log(`🐕 Searching DoesTheDogDie for: "${query}"`);
+    async searchDoesTheDogDie(query, exactMatch = false, contentType = 'book') {
+        console.log(`🐕 Searching DoesTheDogDie for: "${query}" (${contentType})`);
         
         if (DOESTHEDOGDIE_API_KEY === 'YOUR_DTDD_API_KEY' || !DOESTHEDOGDIE_API_KEY) {
             console.log(`  ⚠️ DoesTheDogDie API key not configured`);
@@ -679,7 +679,7 @@ class LaurensList {
                 
                 return {
                     title: item.name || 'Unknown Title',
-                    author: 'Unknown Author',
+                    author: contentType === 'book' ? 'Unknown Author' : undefined,
                     description: item.overview || '',
                     plotSummary: '',
                     reviews: '',
@@ -687,7 +687,7 @@ class LaurensList {
                     publishedDate: item.releaseYear || 'Unknown',
                     pageCount: null,
                     categories: item.genre ? [item.genre] : [],
-                    type: 'book',
+                    type: contentType,
                     source: 'DoesTheDogDie'
                 };
             }
@@ -2190,10 +2190,14 @@ class LaurensList {
                 // Search IMDb Cancer Movies list
                 const imdbCancerResult = await this.searchIMDbCancerList(movie.title, exactMatch);
                 
+                // Search DoesTheDogDie for movie content warnings
+                const dtddMovieResult = await this.searchDoesTheDogDie(movie.title, exactMatch, 'movie');
+                
                 console.log(`📚 Wikipedia cancer category check: ${wikipediaCancerCheck ? '✅ Found in cancer films category' : '❌ Not found'}`);
                 console.log(`📚 Wikipedia movie page: ${wikipediaMovieInfo ? '✅ Found detailed plot' : '❌ No detailed plot found'}`);
                 console.log(`🌐 Web search: ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ Search failed'}`);
                 console.log(`🎬 IMDb Cancer List: ${imdbCancerResult ? '✅ Found in cancer movies list' : '❌ Not found in cancer movies list'}`);
+                console.log(`🐕 DoesTheDogDie: ${dtddMovieResult ? '✅ Found' : '❌ No results'}`);
                 
                 // Add Wikipedia and web search results to debug content
                 debugContent += `<h4>📚 Wikipedia Results:</h4>\n`;
@@ -2249,6 +2253,20 @@ class LaurensList {
                     </div>`;
                 }
                 
+                debugContent += `<h4>🐕 DoesTheDogDie Results:</h4>\n`;
+                if (dtddMovieResult) {
+                    debugContent += `<div class="api-result api-success">
+                        <strong>🐕 DoesTheDogDie: ✅ Found</strong><br>
+                        Title: ${dtddMovieResult.title}<br>
+                        Release Year: ${dtddMovieResult.publishedDate}<br>
+                        Content Warnings: ${dtddMovieResult.contentWarnings || 'Available on DoesTheDogDie'}
+                    </div>`;
+                } else {
+                    debugContent += `<div class="api-result api-no-results">
+                        <strong>🐕 DoesTheDogDie: ❌ No results</strong>
+                    </div>`;
+                }
+                
                 // Update the debug section
                 this.updateApiDebugInfo(debugContent);
                 
@@ -2264,19 +2282,22 @@ class LaurensList {
                     wikipediaCancerInfo: wikipediaCancerCheck,
                     wikipediaInfo: wikipediaMovieInfo,
                     webSearchResult: webSearchResult,
-                    imdbCancerResult: imdbCancerResult
+                    imdbCancerResult: imdbCancerResult,
+                    dtddResult: dtddMovieResult
                 };
             } else {
                 debugContent += `<div class="api-result api-no-results">
                     <strong>🎬 TMDB: ❌ No movies found</strong>
                 </div>`;
                 
-                // Even if TMDB finds no results, check web search and IMDb Cancer List for cancer-related terms
+                // Even if TMDB finds no results, check web search, IMDb Cancer List, and DoesTheDogDie for cancer-related terms
                 const webSearchResult = await this.searchWebForCancerContent(query, 'movie');
                 const imdbCancerResult = await this.searchIMDbCancerList(query, exactMatch);
+                const dtddMovieResult = await this.searchDoesTheDogDie(query, exactMatch, 'movie');
                 
                 console.log(`🌐 Web search (no TMDB results): ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ Search failed'}`);
                 console.log(`🎬 IMDb Cancer List (no TMDB results): ${imdbCancerResult ? '✅ Found in cancer movies list' : '❌ Not found in cancer movies list'}`);
+                console.log(`🐕 DoesTheDogDie (no TMDB results): ${dtddMovieResult ? '✅ Found' : '❌ No results'}`);
                 
                 debugContent += `<h4>🌐 Web Search Results:</h4>\n`;
                 if (webSearchResult && webSearchResult.found) {
@@ -2306,23 +2327,38 @@ class LaurensList {
                     </div>`;
                 }
                 
+                debugContent += `<h4>🐕 DoesTheDogDie Results:</h4>\n`;
+                if (dtddMovieResult) {
+                    debugContent += `<div class="api-result api-success">
+                        <strong>🐕 DoesTheDogDie: ✅ Found</strong><br>
+                        Title: ${dtddMovieResult.title}<br>
+                        Release Year: ${dtddMovieResult.publishedDate}<br>
+                        Content Warnings: ${dtddMovieResult.contentWarnings || 'Available on DoesTheDogDie'}
+                    </div>`;
+                } else {
+                    debugContent += `<div class="api-result api-no-results">
+                        <strong>🐕 DoesTheDogDie: ❌ No results</strong>
+                    </div>`;
+                }
+                
                 this.updateApiDebugInfo(debugContent);
                 
-                // If web search or IMDb Cancer List found cancer content, return a result even without TMDB data
-                if ((webSearchResult && webSearchResult.found) || imdbCancerResult) {
+                // If web search, IMDb Cancer List, or DoesTheDogDie found content, return a result even without TMDB data
+                if ((webSearchResult && webSearchResult.found) || imdbCancerResult || dtddMovieResult) {
                     return {
                         title: query,
-                        overview: 'No description available from TMDB',
-                        releaseDate: 'Unknown',
+                        overview: dtddMovieResult?.description || 'No description available from TMDB',
+                        releaseDate: dtddMovieResult?.publishedDate || 'Unknown',
                         rating: null,
-                        genres: [],
+                        genres: dtddMovieResult?.categories || [],
                         runtime: null,
                         type: 'movie',
-                        source: 'Web Search / IMDb Cancer List',
+                        source: 'Web Search / IMDb Cancer List / DoesTheDogDie',
                         wikipediaCancerInfo: null,
                         wikipediaInfo: null,
                         webSearchResult: webSearchResult,
-                        imdbCancerResult: imdbCancerResult
+                        imdbCancerResult: imdbCancerResult,
+                        dtddResult: dtddMovieResult
                     };
                 }
                 
@@ -2430,7 +2466,10 @@ class LaurensList {
                 content.wikipediaInfo ? content.wikipediaInfo.plotSummary || '' : '',
                 content.wikipediaInfo ? content.wikipediaInfo.description || '' : '',
                 // Include web search results if available
-                content.webSearchResult ? (content.webSearchResult.found ? content.webSearchResult.reason : '') : ''
+                content.webSearchResult ? (content.webSearchResult.found ? content.webSearchResult.reason : '') : '',
+                // Include DoesTheDogDie results if available
+                content.dtddResult ? (content.dtddResult.description || '') : '',
+                content.dtddResult ? (content.dtddResult.contentWarnings || '') : ''
             ].join(' ').toLowerCase();
 
             // Simple analysis - check for cancer terms
@@ -2476,10 +2515,30 @@ class LaurensList {
             console.log(`🎬 IMDb Cancer List check: YES - Found in cancer movies list`);
         }
 
-        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && !webSearchCancerCheck && !imdbCancerCheck;
+        // Check DoesTheDogDie results (if found, indicates content warnings available)
+        let dtddCancerCheck = null;
+        if (content.dtddResult) {
+            dtddCancerCheck = content.dtddResult;
+            // DoesTheDogDie is primarily for movies/TV with trigger warnings
+            // If we found it on DoesTheDogDie, check its description/contentWarnings for cancer terms
+            const dtddText = [
+                dtddCancerCheck.description || '',
+                dtddCancerCheck.contentWarnings || ''
+            ].join(' ').toLowerCase();
+            
+            const dtddCancerTerms = CANCER_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
+            if (dtddCancerTerms.length > 0) {
+                console.log(`🐕 DoesTheDogDie cancer check: YES - Found cancer terms: ${dtddCancerTerms.join(', ')}`);
+            } else {
+                console.log(`🐕 DoesTheDogDie check: Found movie, but no obvious cancer terms in description`);
+            }
+        }
+
+        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && !webSearchCancerCheck && !imdbCancerCheck && !dtddCancerCheck;
         const confidence = knownCancerContent.isKnownCancer ? 0.95 : 
                           wikipediaCancerCheck ? 0.95 :
                           imdbCancerCheck ? 0.95 :
+                          dtddCancerCheck ? 0.90 :
                           webSearchCancerCheck ? webSearchCancerCheck.confidence / 100 :
                           foundTerms.length > 0 ? 0.8 : 0.9;
 
@@ -2492,18 +2551,19 @@ class LaurensList {
             isSafe: isSafe,
             foundTerms: foundTerms,
             confidence: confidence,
-            analysisText: this.generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck),
+            analysisText: this.generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck),
             detailedAnalysis: {
                 directTerms: foundTerms,
                 knownCancerContent: knownCancerContent,
                 wikipediaCancerCategory: wikipediaCancerCheck,
                 webSearchResult: webSearchCancerCheck,
-                imdbCancerResult: imdbCancerCheck
+                imdbCancerResult: imdbCancerCheck,
+                dtddResult: dtddCancerCheck
             }
         };
     }
 
-    generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck) {
+    generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck) {
         if (knownCancerContent.isKnownCancer) {
             return `This is a known cancer-themed work. The story prominently features characters dealing with cancer and related medical conditions.`;
         }
@@ -2514,6 +2574,21 @@ class LaurensList {
         
         if (imdbCancerCheck) {
             return `This film is listed in IMDb's "Movies about Cancer" list - a curated collection of 84+ films that deal with cancer themes. The film contains cancer-related content.`;
+        }
+        
+        if (dtddCancerCheck) {
+            // Check if DoesTheDogDie description/contentWarnings contain cancer terms
+            const dtddText = [
+                dtddCancerCheck.description || '',
+                dtddCancerCheck.contentWarnings || ''
+            ].join(' ').toLowerCase();
+            
+            const dtddCancerTerms = CANCER_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
+            if (dtddCancerTerms.length > 0) {
+                return `This film is listed on DoesTheDogDie with content warnings. Cancer-related terms detected in the film's description: ${dtddCancerTerms.join(', ')}. The film contains cancer-related content.`;
+            }
+            // If found on DoesTheDogDie but no obvious cancer terms, just mention it's available there
+            return `This film is listed on DoesTheDogDie, which tracks content warnings for movies. Additional trigger warnings may be available.`;
         }
         
         if (webSearchCancerCheck) {
@@ -2600,6 +2675,10 @@ class LaurensList {
             
             if (details.imdbCancerResult) {
                 sourceDetails += '<p><strong>🎬 IMDb Cancer List:</strong> Found in IMDb\'s "Movies about Cancer" list (84+ films).</p>';
+            }
+            
+            if (details.dtddResult) {
+                sourceDetails += '<p><strong>🐕 DoesTheDogDie:</strong> Film found on DoesTheDogDie with content warnings database.</p>';
             }
             
             if (details.webSearchResult && details.webSearchResult.found) {
