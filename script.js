@@ -770,7 +770,7 @@ class LaurensList {
         }
         
         const searchQuery = exactMatch ? `"${query}"` : query;
-        const url = `https://www.doesthedogdie.com/api/search?q=${encodeURIComponent(searchQuery)}&api_key=${DOESTHEDOGDIE_API_KEY}`;
+        const url = `https://www.doesthedogdie.com/dddsearch?q=${encodeURIComponent(searchQuery)}`;
         
         if (exactMatch) {
             console.log(`  🔍 Exact match mode: Using quoted search`);
@@ -779,7 +779,12 @@ class LaurensList {
         try {
             console.log(`  🔍 Fetching from DoesTheDogDie...`);
             console.log(`  🔗 URL: ${url}`);
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-API-KEY': DOESTHEDOGDIE_API_KEY
+                }
+            });
             
             if (!response.ok) {
                 console.log(`  🐕 DoesTheDogDie: API request failed with status ${response.status}`);
@@ -789,28 +794,20 @@ class LaurensList {
             const data = await response.json();
             console.log(`  📊 DoesTheDogDie response:`, data);
             
-            if (data.results && data.results.length > 0) {
-                const item = data.results[0];
-                console.log(`  🐕 DoesTheDogDie found: ${item.title}`);
-                
-                // Get detailed trigger warnings
-                let triggerWarnings = '';
-                if (item.triggers && item.triggers.length > 0) {
-                    triggerWarnings = item.triggers.map(trigger => 
-                        `${trigger.name}: ${trigger.description || 'Present'}`
-                    ).join(' ');
-                }
+            if (data.items && data.items.length > 0) {
+                const item = data.items[0];
+                console.log(`  🐕 DoesTheDogDie found: ${item.name}`);
                 
                 return {
-                    title: item.title || 'Unknown Title',
-                    author: item.author || 'Unknown Author',
-                    description: item.description || '',
+                    title: item.name || 'Unknown Title',
+                    author: 'Unknown Author',
+                    description: item.overview || '',
                     plotSummary: '',
                     reviews: '',
-                    contentWarnings: triggerWarnings,
-                    publishedDate: item.year || 'Unknown',
+                    contentWarnings: 'Available on DoesTheDogDie',
+                    publishedDate: item.releaseYear || 'Unknown',
                     pageCount: null,
-                    categories: item.genres || [],
+                    categories: item.genre ? [item.genre] : [],
                     type: 'book',
                     source: 'DoesTheDogDie'
                 };
