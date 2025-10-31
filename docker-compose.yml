@@ -60,7 +60,7 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.laurenslist.rule=Host(`srv1010721.hstgr.cloud`)"
+      - "traefik.http.routers.laurenslist.rule=Host(`laurenslist.org`) || Host(`www.laurenslist.org`) || Host(`srv1010721.hstgr.cloud`)"
       - "traefik.http.routers.laurenslist.tls=true"
       - "traefik.http.routers.laurenslist.entrypoints=web,websecure"
       - "traefik.http.routers.laurenslist.tls.certresolver=mytlschallenge"
