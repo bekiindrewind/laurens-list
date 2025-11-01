@@ -1566,19 +1566,33 @@ class LaurensList {
                 let bestScore = 0;
                 
                 for (let book of allBooks) {
-                    // Simple fuzzy match: count common words
-                    const queryWords = queryLower.split(/\s+/);
-                    const titleWords = book.titleLower.split(/\s+/);
-                    let matches = 0;
+                    // Improved fuzzy match: count common words (excluding common stop words)
+                    const stopWords = ['a', 'an', 'the', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'and', 'or', 'but'];
+                    const queryWords = queryLower.split(/\s+/).filter(word => word.length > 1 && !stopWords.includes(word));
+                    const titleWords = book.titleLower.split(/\s+/).filter(word => word.length > 1 && !stopWords.includes(word));
                     
+                    // If query has no significant words after filtering, skip fuzzy matching
+                    if (queryWords.length === 0) {
+                        continue;
+                    }
+                    
+                    // Count matching significant words (must match entire word or be substring)
+                    let matches = 0;
                     for (let qWord of queryWords) {
-                        if (titleWords.some(tWord => tWord.includes(qWord) || qWord.includes(tWord))) {
+                        if (titleWords.some(tWord => tWord === qWord || tWord.includes(qWord) || qWord.includes(tWord))) {
                             matches++;
                         }
                     }
                     
-                    const score = matches / Math.max(queryWords.length, titleWords.length);
-                    if (score > bestScore && score > 0.3) { // At least 30% match
+                    // Score is based on how many query words match (not total words)
+                    // This ensures titles like "My Oxford Year" match better than "A Bicycle Made For Two"
+                    const score = matches / queryWords.length;
+                    
+                    // Require at least 60% of significant query words to match
+                    // AND at least 50% of total words (including stop words) to match
+                    const totalScore = matches / Math.max(queryWords.length, titleWords.length);
+                    
+                    if (score >= 0.6 && totalScore >= 0.5 && score > bestScore) {
                         bestScore = score;
                         bestMatch = book;
                     }
@@ -1591,6 +1605,8 @@ class LaurensList {
                         author: bestMatch.author,
                         element: null
                     };
+                } else {
+                    console.log(`  ❌ No fuzzy match found - threshold too strict or no good matches`);
                 }
             }
             
