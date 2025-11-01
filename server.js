@@ -54,6 +54,37 @@ app.get('/api/doesthedogdie', async (req, res) => {
     }
 });
 
+// Trigger Warning Database proxy endpoint
+app.get('/api/triggerwarning', async (req, res) => {
+    try {
+        const url = 'https://triggerwarningdatabase.com/terminal-illnesses/';
+        
+        console.log('Proxy: Fetching Trigger Warning Database:', url);
+        
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'text/html',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const html = await response.text();
+        console.log('Proxy: Trigger Warning Database response status:', response.status);
+        console.log('Proxy: Trigger Warning Database response length:', html.length);
+        
+        // Return the HTML for client-side parsing
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (error) {
+        console.error('Trigger Warning Database proxy error:', error);
+        res.status(500).json({ error: 'Failed to fetch from Trigger Warning Database', details: error.message });
+    }
+});
+
 // Serve static files from the current directory (CSS, JS, images, favicons, etc.)
 app.use(express.static(__dirname, {
     index: false, // Don't serve index.html automatically, let routes handle it

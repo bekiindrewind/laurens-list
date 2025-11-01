@@ -280,14 +280,15 @@ class LaurensList {
             this.showApiDebugSection();
             
             // Try multiple sources for comprehensive data
-            const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData] = await Promise.allSettled([
+            const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData, triggerWarningData] = await Promise.allSettled([
                 this.searchGoogleBooks(query, exactMatch),
                 this.searchOpenLibrary(query, exactMatch),
                 this.searchDoesTheDogDie(query, exactMatch, 'book'),
                 this.searchGoodreads(query, exactMatch),
                 this.searchWikipedia(query, exactMatch),
                 this.searchStoryGraph(query, exactMatch),
-                this.searchWebForCancerContent(query, 'book')
+                this.searchWebForCancerContent(query, 'book'),
+                this.searchTriggerWarningDatabase(query, exactMatch)
             ]);
 
             const googleResult = googleBooksData.status === 'fulfilled' ? googleBooksData.value : null;
@@ -297,6 +298,7 @@ class LaurensList {
             const wikipediaResult = wikipediaData.status === 'fulfilled' ? wikipediaData.value : null;
             const storyGraphResult = storyGraphData.status === 'fulfilled' ? storyGraphData.value : null;
             const webSearchResult = webSearchData.status === 'fulfilled' ? webSearchData.value : null;
+            const triggerWarningResult = triggerWarningData.status === 'fulfilled' ? triggerWarningData.value : null;
             
             console.log('📊 API Results Summary:');
             console.log(`  📚 Google Books: ${googleResult ? '✅ Found' : '❌ No results'}`);
@@ -306,6 +308,7 @@ class LaurensList {
             console.log(`  📚 Wikipedia: ${wikipediaResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  📖 StoryGraph: ${storyGraphResult ? '✅ Found' : '❌ No results'}`);
             console.log(`  🌐 Web Search: ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ No results'}`);
+            console.log(`  ⚠️ Trigger Warning Database: ${triggerWarningResult ? '✅ Found' : '❌ No results'}`);
             
             // Update API debug section with results
             let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
@@ -424,8 +427,22 @@ class LaurensList {
                 </div>`;
             }
             
+            if (triggerWarningResult) {
+                debugContent += `<div class="api-result api-success">
+                    <strong>⚠️ Trigger Warning Database: ✅ Found</strong><br>
+                    Title: ${triggerWarningResult.title}<br>
+                    Author: ${triggerWarningResult.author || 'N/A'}<br>
+                    Content Warnings: ${triggerWarningResult.contentWarnings || 'None'}<br>
+                    Source: ${triggerWarningResult.source}
+                </div>`;
+            } else {
+                debugContent += `<div class="api-result api-no-results">
+                    <strong>⚠️ Trigger Warning Database: ❌ No results</strong>
+                </div>`;
+            }
+            
             // Combine results from all APIs
-            const allResults = [googleResult, openLibraryResult, dtddResult, goodreadsResult, wikipediaResult, storyGraphResult].filter(Boolean);
+            const allResults = [googleResult, openLibraryResult, dtddResult, goodreadsResult, wikipediaResult, storyGraphResult, triggerWarningResult].filter(Boolean);
             
             if (allResults.length === 0) {
                 console.log('❌ No results found from any API');
@@ -442,6 +459,11 @@ class LaurensList {
             // Add web search result to the combined result
             if (webSearchResult) {
                 combinedResult.webSearchResult = webSearchResult;
+            }
+            
+            // Add Trigger Warning Database result to the combined result
+            if (triggerWarningResult) {
+                combinedResult.triggerWarningResult = triggerWarningResult;
             }
             
             console.log('🎯 Final Selection:');
@@ -1314,6 +1336,174 @@ class LaurensList {
             
         } catch (error) {
             console.error('Goodreads search error:', error);
+            return null;
+        }
+    }
+
+    async searchTriggerWarningDatabase(query, exactMatch = false) {
+        console.log(`⚠️ Searching Trigger Warning Database for: "${query}"`);
+        
+        // Check if we're running from file:// protocol (CORS will block this)
+        if (window.location.protocol === 'file:') {
+            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
+            return null;
+        }
+        
+        try {
+            // Fetch HTML from our server-side proxy
+            const proxyUrl = '/api/triggerwarning';
+            
+            console.log(`  🔍 Fetching from Trigger Warning Database via proxy...`);
+            console.log(`  🔗 Proxy URL: ${proxyUrl}`);
+            
+            const response = await fetch(proxyUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            console.log(`  📊 Trigger Warning Database HTML length: ${html.length} characters`);
+            
+            // Parse the HTML to extract book information
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // The Trigger Warning Database lists books in the format: "**Title** by Author"
+            // Look for list items or paragraphs containing book entries
+            const queryLower = query.toLowerCase().trim();
+            let matchedBook = null;
+            
+            // Search for book entries - they're typically in <li> tags or <p> tags with bold titles
+            const bookElements = doc.querySelectorAll('li, p');
+            
+            console.log(`  🔍 Found ${bookElements.length} potential book elements`);
+            
+            for (let element of bookElements) {
+                const text = element.textContent.trim();
+                const htmlContent = element.innerHTML || '';
+                
+                // Check if this element contains a book entry
+                // Pattern: "**Title** by Author" or similar
+                if (text.includes(' by ') || htmlContent.includes('<strong>')) {
+                    // Extract title and author
+                    let title = '';
+                    let author = '';
+                    
+                    // Try to extract from bold tags
+                    const boldElement = element.querySelector('strong') || element.querySelector('b');
+                    if (boldElement) {
+                        title = boldElement.textContent.trim();
+                    }
+                    
+                    // Extract author (usually after " by ")
+                    const byIndex = text.indexOf(' by ');
+                    if (byIndex !== -1) {
+                        if (!title) {
+                            title = text.substring(0, byIndex).replace(/\**/g, '').trim();
+                        }
+                        author = text.substring(byIndex + 4).trim();
+                    }
+                    
+                    // If we found a title, check if it matches our query
+                    if (title) {
+                        const titleLower = title.toLowerCase();
+                        const isMatch = exactMatch 
+                            ? titleLower === queryLower 
+                            : titleLower.includes(queryLower) || queryLower.includes(titleLower);
+                        
+                        if (isMatch) {
+                            console.log(`  ✅ Found matching book: "${title}" by ${author}`);
+                            matchedBook = {
+                                title: title,
+                                author: author,
+                                element: element
+                            };
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If no exact match found and not in exact match mode, try fuzzy matching
+            if (!matchedBook && !exactMatch) {
+                console.log(`  🔍 Trying fuzzy matching...`);
+                
+                // Extract all book titles from the page
+                const allBooks = [];
+                for (let element of bookElements) {
+                    const text = element.textContent.trim();
+                    if (text.includes(' by ')) {
+                        const byIndex = text.indexOf(' by ');
+                        const title = text.substring(0, byIndex).replace(/\**/g, '').trim();
+                        const author = text.substring(byIndex + 4).trim();
+                        
+                        if (title) {
+                            allBooks.push({
+                                title: title,
+                                author: author,
+                                titleLower: title.toLowerCase()
+                            });
+                        }
+                    }
+                }
+                
+                // Find the best match using fuzzy matching
+                let bestMatch = null;
+                let bestScore = 0;
+                
+                for (let book of allBooks) {
+                    // Simple fuzzy match: count common words
+                    const queryWords = queryLower.split(/\s+/);
+                    const titleWords = book.titleLower.split(/\s+/);
+                    let matches = 0;
+                    
+                    for (let qWord of queryWords) {
+                        if (titleWords.some(tWord => tWord.includes(qWord) || qWord.includes(tWord))) {
+                            matches++;
+                        }
+                    }
+                    
+                    const score = matches / Math.max(queryWords.length, titleWords.length);
+                    if (score > bestScore && score > 0.3) { // At least 30% match
+                        bestScore = score;
+                        bestMatch = book;
+                    }
+                }
+                
+                if (bestMatch) {
+                    console.log(`  ✅ Found fuzzy match: "${bestMatch.title}" by ${bestMatch.author} (score: ${bestScore.toFixed(2)})`);
+                    matchedBook = {
+                        title: bestMatch.title,
+                        author: bestMatch.author,
+                        element: null
+                    };
+                }
+            }
+            
+            if (matchedBook) {
+                // If found in Trigger Warning Database, it definitely contains cancer/terminal illness content
+                console.log(`  ⚠️ Book found in Trigger Warning Database - contains cancer/terminal illness warnings`);
+                
+                return {
+                    title: matchedBook.title,
+                    author: matchedBook.author,
+                    description: `This book is listed in the Trigger Warning Database under terminal illnesses/cancer warnings.`,
+                    plotSummary: '',
+                    reviews: '',
+                    contentWarnings: 'Contains cancer/terminal illness content (from Trigger Warning Database)',
+                    publishedDate: 'Unknown',
+                    pageCount: null,
+                    categories: [],
+                    type: 'book',
+                    source: 'Trigger Warning Database'
+                };
+            }
+            
+            console.log(`  ⚠️ No matching book found in Trigger Warning Database`);
+            return null;
+            
+        } catch (error) {
+            console.error('Trigger Warning Database search error:', error);
             return null;
         }
     }
@@ -2469,7 +2659,10 @@ class LaurensList {
                 content.webSearchResult ? (content.webSearchResult.found ? content.webSearchResult.reason : '') : '',
                 // Include DoesTheDogDie results if available
                 content.dtddResult ? (content.dtddResult.description || '') : '',
-                content.dtddResult ? (content.dtddResult.contentWarnings || '') : ''
+                content.dtddResult ? (content.dtddResult.contentWarnings || '') : '',
+                // Include Trigger Warning Database results if available
+                content.triggerWarningResult ? (content.triggerWarningResult.description || '') : '',
+                content.triggerWarningResult ? (content.triggerWarningResult.contentWarnings || '') : ''
             ].join(' ').toLowerCase();
 
             // Simple analysis - check for cancer terms
@@ -2534,8 +2727,16 @@ class LaurensList {
             }
         }
 
-        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && !webSearchCancerCheck && !imdbCancerCheck && !dtddCancerCheck;
+        // Check Trigger Warning Database results (if found, definitely contains cancer/terminal illness content)
+        let triggerWarningCheck = null;
+        if (content.triggerWarningResult) {
+            triggerWarningCheck = content.triggerWarningResult;
+            console.log(`⚠️ Trigger Warning Database check: YES - Found in terminal illnesses/cancer warnings database`);
+        }
+
+        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && !webSearchCancerCheck && !imdbCancerCheck && !dtddCancerCheck && !triggerWarningCheck;
         const confidence = knownCancerContent.isKnownCancer ? 0.95 : 
+                          triggerWarningCheck ? 0.95 :
                           wikipediaCancerCheck ? 0.95 :
                           imdbCancerCheck ? 0.95 :
                           dtddCancerCheck ? 0.90 :
@@ -2551,21 +2752,26 @@ class LaurensList {
             isSafe: isSafe,
             foundTerms: foundTerms,
             confidence: confidence,
-            analysisText: this.generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck),
+            analysisText: this.generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck, triggerWarningCheck),
             detailedAnalysis: {
                 directTerms: foundTerms,
                 knownCancerContent: knownCancerContent,
                 wikipediaCancerCategory: wikipediaCancerCheck,
                 webSearchResult: webSearchCancerCheck,
                 imdbCancerResult: imdbCancerCheck,
-                dtddResult: dtddCancerCheck
+                dtddResult: dtddCancerCheck,
+                triggerWarningResult: triggerWarningCheck
             }
         };
     }
 
-    generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck) {
+    generateSimpleAnalysisText(foundTerms, knownCancerContent, isSafe, wikipediaCancerCheck, webSearchCancerCheck, imdbCancerCheck, dtddCancerCheck, triggerWarningCheck) {
         if (knownCancerContent.isKnownCancer) {
             return `This is a known cancer-themed work. The story prominently features characters dealing with cancer and related medical conditions.`;
+        }
+        
+        if (triggerWarningCheck) {
+            return `This book is listed in the Trigger Warning Database under terminal illnesses/cancer warnings - a curated database of books that contain cancer and terminal illness content.`;
         }
         
         if (wikipediaCancerCheck) {
