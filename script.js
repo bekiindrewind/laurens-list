@@ -19,29 +19,39 @@ if (typeof CONFIG !== 'undefined') {
 
 console.log('📝 Script continuing to load...');
 
-// Cancer-related terms for semantic analysis
-const CANCER_TERMS = [
+// Cancer-specific terms (terms that directly indicate cancer)
+// Used for high-confidence detection, especially in DoesTheDogDie results
+const CANCER_SPECIFIC_TERMS = [
     'cancer', 'tumor', 'tumour', 'malignancy', 'carcinoma', 'sarcoma', 'leukemia', 'leukaemia',
     'lymphoma', 'melanoma', 'metastasis', 'chemotherapy', 'radiation', 'oncology', 'oncologist',
-    'biopsy', 'malignant', 'benign', 'stage 1', 'stage 2', 'stage 3', 'stage 4', 'terminal',
-    'hospice', 'palliative', 'cancer treatment', 'cancer patient', 'cancer survivor',
+    'biopsy', 'malignant', 'benign', 'cancer treatment', 'cancer patient', 'cancer survivor',
     'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
     'brain tumor', 'brain tumour', 'cancer diagnosis', 'cancer prognosis', 'cancer remission',
     'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer',
     'pediatric oncology', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
-    'cancer hospital', 'oncology department', 'cancer center', 'oncology center',
+    'cancer hospital', 'oncology department', 'cancer center', 'oncology center'
+];
+
+// Cancer-related terms for semantic analysis (includes cancer-specific and broader terminal illness terms)
+const CANCER_TERMS = [
+    // Cancer-specific terms (copy from above)
+    ...CANCER_SPECIFIC_TERMS,
     
-    // Terminal illness terms
+    // Terminal illness terms (broader context)
     'terminal illness', 'terminal disease', 'terminal condition', 'terminal diagnosis',
     'end stage', 'end-stage', 'advanced stage', 'late stage', 'final stage',
     'life expectancy', 'prognosis', 'months to live', 'weeks to live', 'days to live',
-    'dying', 'death', 'mortality', 'fatal', 'incurable', 'untreatable',
+    // Note: Removed generic death terms: 'dying', 'death', 'mortality', 'fatal', 
+    // 'passing away', 'succumbed', 'lost to', 'died from', 'death from'
+    // These alone should not trigger "not recommended" status
+    'incurable', 'untreatable',
     'hospice care', 'end of life', 'final days', 'last days', 'deathbed',
-    'passing away', 'succumbed', 'lost to', 'died from', 'death from',
     'chronic illness', 'serious illness', 'life-threatening', 'critical condition',
     'medical crisis', 'health crisis', 'declining health', 'failing health',
     'deteriorating condition', 'worsening condition', 'progressive disease',
-    'degenerative disease', 'fatal disease', 'lethal disease', 'deadly disease'
+    'degenerative disease', 'fatal disease', 'lethal disease', 'deadly disease',
+    // Keep 'terminal', 'hospice', 'palliative' but require additional context
+    'terminal', 'hospice', 'palliative'
 ];
 
 // Known cancer-themed books and movies for enhanced detection
@@ -2732,21 +2742,25 @@ class LaurensList {
         }
 
         // Check DoesTheDogDie results (if found, indicates content warnings available)
+        // Only flag as unsafe if CANCER_SPECIFIC_TERMS are found (not generic death terms)
         let dtddCancerCheck = null;
         if (content.dtddResult) {
-            dtddCancerCheck = content.dtddResult;
             // DoesTheDogDie is primarily for movies/TV with trigger warnings
-            // If we found it on DoesTheDogDie, check its description/contentWarnings for cancer terms
+            // Only flag as unsafe if cancer-specific terms are found (not generic "death", "dying", etc.)
             const dtddText = [
-                dtddCancerCheck.description || '',
-                dtddCancerCheck.contentWarnings || ''
+                content.dtddResult.description || '',
+                content.dtddResult.contentWarnings || ''
             ].join(' ').toLowerCase();
             
-            const dtddCancerTerms = CANCER_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
+            // Check for cancer-specific terms (not generic death terms)
+            const dtddCancerTerms = CANCER_SPECIFIC_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
             if (dtddCancerTerms.length > 0) {
-                console.log(`🐕 DoesTheDogDie cancer check: YES - Found cancer terms: ${dtddCancerTerms.join(', ')}`);
+                // Only set dtddCancerCheck if cancer-specific terms found
+                dtddCancerCheck = content.dtddResult;
+                console.log(`🐕 DoesTheDogDie cancer check: YES - Found cancer-specific terms: ${dtddCancerTerms.join(', ')}`);
             } else {
-                console.log(`🐕 DoesTheDogDie check: Found movie, but no obvious cancer terms in description`);
+                // Found on DoesTheDogDie but no cancer-specific terms - don't flag as unsafe
+                console.log(`🐕 DoesTheDogDie check: Found movie, but no cancer-specific terms found (only generic death/illness terms, if any)`);
             }
         }
 
@@ -2806,17 +2820,17 @@ class LaurensList {
         }
         
         if (dtddCancerCheck) {
-            // Check if DoesTheDogDie description/contentWarnings contain cancer terms
+            // Check if DoesTheDogDie description/contentWarnings contain cancer-specific terms
             const dtddText = [
                 dtddCancerCheck.description || '',
                 dtddCancerCheck.contentWarnings || ''
             ].join(' ').toLowerCase();
             
-            const dtddCancerTerms = CANCER_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
+            const dtddCancerTerms = CANCER_SPECIFIC_TERMS.filter(term => dtddText.includes(term.toLowerCase()));
             if (dtddCancerTerms.length > 0) {
-                return `This film is listed on DoesTheDogDie with content warnings. Cancer-related terms detected in the film's description: ${dtddCancerTerms.join(', ')}. The film contains cancer-related content.`;
+                return `This film is listed on DoesTheDogDie with content warnings. Cancer-specific terms detected in the film's description: ${dtddCancerTerms.join(', ')}. The film contains cancer-related content.`;
             }
-            // If found on DoesTheDogDie but no obvious cancer terms, just mention it's available there
+            // This shouldn't happen since we only set dtddCancerCheck if cancer-specific terms are found
             return `This film is listed on DoesTheDogDie, which tracks content warnings for movies. Additional trigger warnings may be available.`;
         }
         
@@ -3068,5 +3082,6 @@ if (document.readyState === 'loading') {
     console.log('📄 Document already loaded, initializing immediately...');
     initializeApp();
 }
+
 
 
