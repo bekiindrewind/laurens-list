@@ -1855,10 +1855,11 @@ class LaurensList {
         
         try {
             // First try searching with "(film)" appended to improve movie matches
+            // Prioritize film-specific searches to avoid matching actor/person pages
             const searchQueries = [
-                query,  // Try original query first
-                `${query} (film)`,  // Try with (film) suffix
-                `${query} film`  // Try with film keyword
+                `${query} (film)`,  // Try with (film) suffix first (most specific)
+                `${query} film`,  // Try with film keyword
+                query  // Try original query last (may match actors/people)
             ];
             
             const filmKeywords = ['film', 'movie', 'cinema', 'motion picture'];
@@ -1918,15 +1919,30 @@ class LaurensList {
                                     const summaryData = await summaryResponse.json();
                                     console.log(`  📊 Wikipedia summary:`, summaryData);
                                     
-                                    // Verify this is a film page (check description or extract)
+                                    // Verify this is a film page (more strict check for exact matches too)
                                     const extractLower = (summaryData.extract || '').toLowerCase();
                                     const descLower = (summaryData.description || '').toLowerCase();
-                                    const isFilmPage = filmKeywords.some(kw => 
-                                        extractLower.includes(kw) || descLower.includes(kw) || 
-                                        titleLower.includes('(film)')
+                                    
+                                    // Require "(film)" in title OR description explicitly says it's a film/movie
+                                    const hasFilmInTitle = titleLower.includes('(film)');
+                                    const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
+                                    const extractStartsWithFilm = extractLower.substring(0, 200).includes('film') || 
+                                                                  extractLower.substring(0, 200).includes('movie');
+                                    const isLikelyFilmPage = hasFilmInTitle || 
+                                                            (hasFilmInDescription && extractStartsWithFilm) ||
+                                                            (descLower && (descLower.includes(' is a ') || descLower.includes(' is an ')) && hasFilmInDescription);
+                                    
+                                    // Additional check: reject if it looks like a person page
+                                    const looksLikePerson = descLower && (
+                                        descLower.includes(' is an actor') || 
+                                        descLower.includes(' is a actor') ||
+                                        descLower.includes(' is an actress') ||
+                                        descLower.includes(' is a actress') ||
+                                        (descLower.includes('born') && descLower.includes('actor')) ||
+                                        (descLower.includes('born') && descLower.includes('actress'))
                                     );
                                     
-                                    if (summaryData.extract && summaryData.extract.length > 50 && isFilmPage) {
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson) {
                                         console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
                                         return {
                                             title: summaryData.title,
@@ -1958,20 +1974,28 @@ class LaurensList {
                                                normalizedQuery.includes(normalizedTitle);
                             
                             // Check if this is explicitly a film/movie (not actor/person)
-                            const isFilm = filmKeywords.some(keyword => 
-                                titleLower.includes(keyword) || snippetLower.includes(keyword) ||
-                                titleLower.includes('(film)')
+                            const hasFilmInTitle = titleLower.includes('(film)') || titleLower.includes(' film') || titleLower.includes(' movie');
+                            const isFilm = hasFilmInTitle || filmKeywords.some(keyword => 
+                                snippetLower.includes(keyword)
                             );
                             const isBook = bookKeywords.some(keyword => 
                                 titleLower.includes(keyword) || snippetLower.includes(keyword)
                             );
+                            
+                            // Detect if this looks like a person name (two words, likely first/last name)
+                            // Skip person pages unless the title explicitly says "(film)" or "film"
+                            const titleWords = titleLower.trim().split(/\s+/);
+                            const looksLikePersonName = titleWords.length === 2 && !hasFilmInTitle && 
+                                                       !normalizedTitle.includes(normalizedQuery);
+                            
                             // Skip actor pages
-                            const isActor = !isExactMatch && actorKeywords.some(keyword => 
+                            const isActor = !isExactMatch && (actorKeywords.some(keyword => 
                                 snippetLower.includes(keyword)
-                            );
+                            ) || looksLikePersonName);
                             
                             // Prioritize film results, avoid book and actor results
-                            if (isFilm && !isBook && !isActor) {
+                            // Only accept if it has "(film)" in title OR we have strong evidence it's a film (not a person)
+                            if ((isFilm || hasFilmInTitle) && !isBook && !isActor) {
                                 console.log(`  🎬 Found film-related match: "${result.title}"`);
                                 
                                 // Now get the page summary
@@ -1983,15 +2007,31 @@ class LaurensList {
                                     const summaryData = await summaryResponse.json();
                                     console.log(`  📊 Wikipedia summary:`, summaryData);
                                     
-                                    // Verify this is a film page
+                                    // Verify this is a film page (more strict check)
                                     const extractLower = (summaryData.extract || '').toLowerCase();
                                     const descLower = (summaryData.description || '').toLowerCase();
-                                    const isFilmPage = filmKeywords.some(kw => 
-                                        extractLower.includes(kw) || descLower.includes(kw) || 
-                                        titleLower.includes('(film)')
+                                    
+                                    // Require "(film)" in title OR description explicitly says it's a film/movie
+                                    // AND verify it's not just mentioning "film" in passing (like "actor known for films")
+                                    const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
+                                    const extractStartsWithFilm = extractLower.substring(0, 200).includes('film') || 
+                                                                  extractLower.substring(0, 200).includes('movie');
+                                    const isLikelyFilmPage = titleLower.includes('(film)') || 
+                                                            (hasFilmInDescription && extractStartsWithFilm) ||
+                                                            (descLower && (descLower.includes(' is a ') || descLower.includes(' is an ')) && hasFilmInDescription);
+                                    
+                                    // Additional check: reject if it looks like a person page
+                                    // Person pages often have descriptions like "is an American actor" or "is a British actress"
+                                    const looksLikePerson = descLower && (
+                                        descLower.includes(' is an actor') || 
+                                        descLower.includes(' is a actor') ||
+                                        descLower.includes(' is an actress') ||
+                                        descLower.includes(' is a actress') ||
+                                        (descLower.includes('born') && descLower.includes('actor')) ||
+                                        (descLower.includes('born') && descLower.includes('actress'))
                                     );
                                     
-                                    if (summaryData.extract && summaryData.extract.length > 50 && isFilmPage) {
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson) {
                                         console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
                                         return {
                                             title: summaryData.title,
@@ -2005,6 +2045,8 @@ class LaurensList {
                                             type: 'movie',
                                             source: 'Wikipedia'
                                         };
+                                    } else {
+                                        console.log(`  ⚠️ Rejected "${result.title}": isLikelyFilmPage=${isLikelyFilmPage}, looksLikePerson=${looksLikePerson}`);
                                     }
                                 }
                             }
