@@ -22,10 +22,50 @@ const DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY || process.env
 // Note: Hardcover API removed - blocked by Cloudflare protection
 // Server-side requests cannot bypass Cloudflare's JavaScript challenge
 
+/**
+ * Sanitize user input on server-side to prevent injection attacks
+ * @param {string} input - Raw input from query parameter
+ * @returns {string|null} - Sanitized input or null if invalid
+ */
+function sanitizeServerInput(input) {
+    if (!input || typeof input !== 'string') {
+        return null;
+    }
+    
+    // Remove HTML tags and script content
+    let sanitized = input.replace(/<[^>]*>/g, '');
+    sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+    
+    // Limit length (max 200 characters)
+    sanitized = sanitized.substring(0, 200);
+    
+    // Remove null bytes and control characters
+    sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+    
+    // Trim and validate
+    sanitized = sanitized.trim();
+    
+    if (!sanitized || sanitized.length === 0) {
+        return null;
+    }
+    
+    return sanitized;
+}
+
 // DoesTheDogDie proxy endpoint
 app.get('/api/doesthedogdie', async (req, res) => {
     try {
-        const query = req.query.q;
+        // SECURITY: Sanitize query parameter before using
+        const rawQuery = req.query.q;
+        if (!rawQuery) {
+            return res.status(400).json({ error: 'Query parameter "q" is required' });
+        }
+        
+        const query = sanitizeServerInput(rawQuery);
+        if (!query) {
+            return res.status(400).json({ error: 'Invalid query parameter' });
+        }
+        
         const url = `https://www.doesthedogdie.com/dddsearch?q=${encodeURIComponent(query)}`;
         
         console.log('Proxy: Fetching from DoesTheDogDie:', url);

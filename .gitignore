@@ -4,6 +4,7 @@
 .env.production
 config.js
 config.hostinger.js
+config.production.js
 
 # Node modules (if you add any later)
 node_modules/

@@ -69,6 +69,24 @@ services:
       - "traefik.http.middlewares.laurenslist-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.laurenslist.middlewares=laurenslist-headers@docker"
 
+  laurenslist-dev:
+    build:
+      context: /root/laurens-list
+      dockerfile: /root/laurens-list/Dockerfile
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laurenslist-dev.rule=Host(`dev.laurenslist.org`)"
+      - "traefik.http.routers.laurenslist-dev.tls=true"
+      - "traefik.http.routers.laurenslist-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.laurenslist-dev.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.laurenslist-dev.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.laurenslist-dev-headers.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.laurenslist-dev-headers.headers.STSSeconds=31536000"
+      - "traefik.http.routers.laurenslist-dev.middlewares=laurenslist-dev-headers@docker"
+    environment:
+      - NODE_ENV=development
+
 volumes:
   traefik_data:
   n8n_data:

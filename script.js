@@ -147,6 +147,76 @@ class LaurensList {
         this.updateBookSearchNote();
     }
 
+    /**
+     * Sanitize user input to prevent XSS and injection attacks
+     * @param {string} input - Raw user input
+     * @returns {string} - Sanitized input safe for use in URLs, API calls, and DOM
+     */
+    sanitizeInput(input) {
+        if (!input || typeof input !== 'string') {
+            return '';
+        }
+
+        // Remove HTML tags
+        let sanitized = input.replace(/<[^>]*>/g, '');
+        
+        // Remove script tags and event handlers
+        sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+        sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+        
+        // Limit length to prevent DoS attacks (max 200 characters for search queries)
+        sanitized = sanitized.substring(0, 200);
+        
+        // Trim whitespace
+        sanitized = sanitized.trim();
+        
+        // Remove null bytes and control characters
+        sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+        
+        return sanitized;
+    }
+
+    /**
+     * Escape HTML entities to prevent XSS when displaying user input
+     * @param {string} text - Text to escape
+     * @returns {string} - Escaped text safe for innerHTML/innerText
+     */
+    escapeHtml(text) {
+        if (!text || typeof text !== 'string') {
+            return '';
+        }
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * Validate and sanitize query string for API calls
+     * @param {string} query - Search query
+     * @returns {string|null} - Sanitized query or null if invalid
+     */
+    sanitizeQuery(query) {
+        if (!query || typeof query !== 'string') {
+            return null;
+        }
+
+        // Basic sanitization
+        let sanitized = this.sanitizeInput(query);
+        
+        // Remove quotes for exact match handling (will be re-added if needed)
+        if ((sanitized.startsWith('"') && sanitized.endsWith('"')) || 
+            (sanitized.startsWith("'") && sanitized.endsWith("'"))) {
+            sanitized = sanitized.slice(1, -1).trim();
+        }
+        
+        // Check if query is empty after sanitization
+        if (!sanitized || sanitized.length === 0) {
+            return null;
+        }
+        
+        return sanitized;
+    }
+
     initializeEventListeners() {
         console.log('🎧 Setting up event listeners...');
         
@@ -236,22 +306,33 @@ class LaurensList {
     }
 
     async performSearch() {
-        const rawQuery = document.getElementById('searchInput').value.trim();
-        if (!rawQuery) {
+        const rawQuery = document.getElementById('searchInput').value;
+        
+        // SECURITY: Sanitize input before processing
+        const sanitizedRaw = this.sanitizeInput(rawQuery);
+        
+        if (!sanitizedRaw || sanitizedRaw.trim().length === 0) {
             this.showError('Please enter a title to search');
             return;
         }
 
         // Check if query is wrapped in quotes for exact matching
-        let query = rawQuery;
+        let query = sanitizedRaw.trim();
         let exactMatch = false;
         
-        if ((rawQuery.startsWith('"') && rawQuery.endsWith('"')) || 
-            (rawQuery.startsWith("'") && rawQuery.endsWith("'"))) {
+        if ((query.startsWith('"') && query.endsWith('"')) || 
+            (query.startsWith("'") && query.endsWith("'"))) {
             // Remove quotes and set exact match flag
-            query = rawQuery.slice(1, -1).trim();
+            query = query.slice(1, -1).trim();
             exactMatch = true;
             console.log('🔍 Exact match mode enabled for:', query);
+        }
+
+        // SECURITY: Additional sanitization for the query itself
+        query = this.sanitizeQuery(query);
+        if (!query) {
+            this.showError('Invalid search query. Please try again.');
+            return;
         }
 
         console.log('Starting search for:', query, 'Type:', this.currentSearchType, 'Exact match:', exactMatch);
@@ -3055,10 +3136,11 @@ function initializeApp() {
     console.log('🚀 Initializing LaurensList...');
     
     // Check if API keys are available, otherwise use demo mode
+    // SECURITY: Never log actual API key values to console
     console.log('🔍 Checking API keys...');
-    console.log('TMDB_API_KEY:', TMDB_API_KEY);
-    console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY);
-    console.log('DOESTHEDOGDIE_API_KEY:', DOESTHEDOGDIE_API_KEY);
+    console.log('TMDB_API_KEY:', TMDB_API_KEY !== 'YOUR_TMDB_API_KEY' ? '✅ Set' : '❌ Not set');
+    console.log('GOOGLE_BOOKS_API_KEY:', GOOGLE_BOOKS_API_KEY !== 'YOUR_GOOGLE_BOOKS_API_KEY' ? '✅ Set' : '❌ Not set');
+    console.log('DOESTHEDOGDIE_API_KEY:', DOESTHEDOGDIE_API_KEY !== 'YOUR_DTDD_API_KEY' ? '✅ Set' : '❌ Not set');
     
     if (TMDB_API_KEY !== 'YOUR_TMDB_API_KEY' && GOOGLE_BOOKS_API_KEY !== 'YOUR_GOOGLE_BOOKS_API_KEY') {
         console.log('Running with real API data! TMDB and Google Books APIs are active.');
