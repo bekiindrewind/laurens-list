@@ -114,30 +114,38 @@ Based on the analysis:
 - `server.js`: Add `/api/websearch` endpoint
 - `script.js`: Update `searchWebForCancerContent` to call proxy instead of pattern matching
 
-### Solution 2: Enhanced Semantic Analysis
+### Solution 2: Enhanced Semantic Analysis ✅ **IMPLEMENTED**
 
 **Implementation**:
-- Expand `CANCER_TERMS` to include implied cancer phrases:
-  - "battles illness"
-  - "terminal diagnosis"
-  - "medical condition"
-  - "life-threatening disease"
-  - "serious illness"
-  - etc.
-- Use more sophisticated pattern matching (e.g., regex for "diagnosed with [disease]", "fights [disease]")
+- ✅ Expanded `CANCER_TERMS` to include implied cancer phrases:
+  - "battles illness", "fighting illness", "struggles with illness"
+  - "battles disease", "fighting disease", "struggles with disease"
+  - "terminal diagnosis", "terminal condition", "terminal situation"
+  - "medical condition", "serious condition", "life-threatening condition"
+  - "life-threatening disease", "life-threatening illness"
+  - "diagnosed with", "diagnosis of", "receives diagnosis"
+  - "medical treatment", "undergoes treatment", "receives treatment"
+  - "hospital stay", "hospitalization", "hospitalized"
+  - "coping with illness", "living with illness", "illness story", "disease story"
+  - "health struggles", "medical struggles", "health battle", "medical battle"
+  - And more (see `script.js` lines 56-72)
+- ✅ Uses existing phrase matching logic (simple string matching with `includes()`)
 
 **Pros**:
-- No external API needed
-- Can catch implied cancer content in Wikipedia/TMDB summaries
-- Works with existing data sources
+- ✅ No external API needed
+- ✅ Can catch implied cancer content in Wikipedia/TMDB summaries
+- ✅ Works with existing data sources
+- ✅ Immediate improvement in detection
 
 **Cons**:
 - May have false positives (not all "battles illness" = cancer)
 - Requires careful curation of terms
 
 **Code Changes**:
-- `script.js`: Expand `CANCER_TERMS` array
-- Add phrase matching logic
+- ✅ `script.js`: Expanded `CANCER_TERMS` array (lines 56-72)
+- ✅ Existing phrase matching logic already supports multi-word phrases
+
+**Status**: Implemented on `investigation/improve-cancer-detection` branch
 
 ### Solution 3: Wikipedia Full Page Content Analysis
 
@@ -191,12 +199,12 @@ Based on the analysis:
 
 ## Implementation Plan
 
-### Phase 1: Enhanced Semantic Analysis (Quick Win)
-- [ ] Expand `CANCER_TERMS` with implied cancer phrases
-- [ ] Add phrase pattern matching
-- [ ] Test with "My Oxford Year" Wikipedia summary
+### Phase 1: Enhanced Semantic Analysis (Quick Win) ✅ **COMPLETED**
+- [x] Expand `CANCER_TERMS` with implied cancer phrases
+- [x] Add phrase pattern matching (already supported via `includes()`)
+- [ ] Test with "My Oxford Year" Wikipedia summary (pending)
 
-### Phase 2: Real Web Search (More Complex)
+### Phase 2: Real Web Search (More Complex) ⏳ **NOT STARTED**
 - [ ] Research Google Custom Search API or SerpApi
 - [ ] Set up API key
 - [ ] Implement server-side proxy endpoint

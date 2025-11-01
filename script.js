@@ -51,7 +51,25 @@ const CANCER_TERMS = [
     'deteriorating condition', 'worsening condition', 'progressive disease',
     'degenerative disease', 'fatal disease', 'lethal disease', 'deadly disease',
     // Keep 'terminal', 'hospice', 'palliative' but require additional context
-    'terminal', 'hospice', 'palliative'
+    'terminal', 'hospice', 'palliative',
+    
+    // Enhanced Semantic Analysis: Implied cancer phrases
+    // These phrases indicate cancer/terminal illness content even if "cancer" isn't explicitly mentioned
+    // Helps catch content like "My Oxford Year" where plot summaries describe cancer themes
+    // without using the exact word "cancer"
+    'battles illness', 'fighting illness', 'struggles with illness', 'deals with illness',
+    'battles disease', 'fighting disease', 'struggles with disease', 'deals with disease',
+    'terminal diagnosis', 'terminal condition', 'terminal situation',
+    'medical condition', 'serious condition', 'life-threatening condition',
+    'life-threatening disease', 'life-threatening illness',
+    'diagnosed with', 'diagnosis of', 'receives diagnosis',
+    'fights cancer', 'battles cancer', 'struggles with cancer', 'deals with cancer',
+    'medical treatment', 'undergoes treatment', 'receives treatment',
+    'hospital stay', 'hospitalization', 'hospitalized',
+    'sick with', 'illness strikes', 'disease affects',
+    'coping with illness', 'coping with disease', 'living with illness', 'living with disease',
+    'illness story', 'disease story', 'medical drama', 'illness drama',
+    'health struggles', 'medical struggles', 'health battle', 'medical battle'
 ];
 
 // Known cancer-themed books and movies for enhanced detection
