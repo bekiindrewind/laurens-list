@@ -58,7 +58,7 @@ sanitizeServerInput(input)  // Sanitizes query parameters
 - ✅ All API calls use sanitized inputs
 - ✅ `encodeURIComponent()` used for URL parameters
 
-**Note**: External API responses (book/movie titles, descriptions) are displayed but come from trusted sources. For enhanced security, consider escaping all external API data before displaying.
+**Note**: ✅ External API data is now escaped before displaying via `innerHTML` for enhanced security protection.
 
 ## Security Best Practices
 
@@ -91,11 +91,42 @@ sanitizeServerInput(input)  // Sanitizes query parameters
 3. **Input Validation**: All user inputs are sanitized
 4. **Error Messages**: Generic error messages don't expose internal details
 
+### 5. External API Data Escaping
+
+**Protection**: Prevents XSS attacks if external APIs return malicious content.
+
+**Implemented**:
+- ✅ All external API data (titles, authors, descriptions, categories, genres, etc.) is escaped before displaying via `innerHTML`
+- ✅ Uses `escapeHtml()` method to escape HTML entities
+- ✅ Applied to all user-facing content from Google Books, TMDB, DoesTheDogDie, etc.
+
+### 6. Rate Limiting
+
+**Protection**: Prevents API abuse and DoS attacks.
+
+**Implemented**:
+- ✅ Rate limiting on `/api/doesthedogdie` endpoint: 20 requests per 15 minutes per IP
+- ✅ Rate limiting on `/api/triggerwarning` endpoint: 20 requests per 15 minutes per IP
+- ✅ Uses `express-rate-limit` package
+- ✅ Returns standard HTTP 429 status with clear error messages
+- ✅ Graceful degradation: Search continues even if rate-limited endpoints fail
+
+### 7. Production Debug Section Hiding
+
+**Protection**: Prevents exposing internal API structure and debugging information in production.
+
+**Implemented**:
+- ✅ Debug section automatically hidden on production sites (`laurenslist.org`, `www.laurenslist.org`)
+- ✅ Available on dev sites (`dev.laurenslist.org`, `localhost`) for testing
+- ✅ `showApiDebugSection()` method checks production mode before showing
+
 ## Known Limitations
 
-1. **External API Data**: Book/movie data from external APIs is displayed without escaping. These are trusted sources, but for maximum security, consider escaping all external data.
+1. ~~**External API Data**: Book/movie data from external APIs is displayed without escaping.~~ ✅ **FIXED**: All external API data is now escaped before display.
 
-2. **Debug Information**: The API debug section shows raw API responses. This is for development/debugging only and should be hidden in production if desired.
+2. ~~**Debug Information**: The API debug section shows raw API responses. This is for development/debugging only and should be hidden in production if desired.~~ ✅ **FIXED**: Debug section is automatically hidden in production mode.
+
+3. **CORS Configuration**: Currently permissive for development. Consider tightening CORS settings for production.
 
 ## Security Audit Checklist
 
@@ -106,8 +137,9 @@ sanitizeServerInput(input)  // Sanitizes query parameters
 - [x] HTTPS enforced (via Traefik)
 - [x] Error messages don't expose internals
 - [x] Input length limits
-- [ ] External API data escaping (optional enhancement)
-- [ ] Rate limiting (future consideration)
+- [x] External API data escaping ✅ **IMPLEMENTED**
+- [x] Rate limiting ✅ **IMPLEMENTED** (20 requests per 15 minutes)
+- [x] Debug section hidden in production ✅ **IMPLEMENTED**
 - [ ] CORS configuration review (currently permissive for dev)
 
 ## Reporting Security Issues
@@ -125,4 +157,10 @@ If you discover a security vulnerability, please:
   - Implemented input sanitization
   - Removed API key logging
   - Added server-side input validation
+
+- **2025-01-XX**: Security enhancements deployed to production
+  - ✅ External API data escaping: All external API responses now escaped before display
+  - ✅ Rate limiting: Added rate limiting (20 requests/15 min) to API proxy endpoints
+  - ✅ Production debug hiding: Debug section automatically hidden on production sites
+  - All enhancements tested on dev site and verified working
 
