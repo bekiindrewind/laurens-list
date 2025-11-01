@@ -272,6 +272,16 @@ class LaurensList {
         }
     }
 
+    // Helper function to add timeout to promises
+    withTimeout(promise, timeoutMs, label) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms: ${label}`)), timeoutMs)
+            )
+        ]);
+    }
+
     async searchBook(query, exactMatch = false) {
         try {
             console.log(`🔍 Starting book search for: "${query}"`);
@@ -279,18 +289,31 @@ class LaurensList {
             // Show API debug section
             this.showApiDebugSection();
             
-            // Try multiple sources for comprehensive data
-            const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData, triggerWarningData] = await Promise.allSettled([
-                this.searchGoogleBooks(query, exactMatch),
-                this.searchOpenLibrary(query, exactMatch),
-                this.searchDoesTheDogDie(query, exactMatch, 'book'),
-                this.searchGoodreads(query, exactMatch),
-                this.searchWikipedia(query, exactMatch),
-                this.searchStoryGraph(query, exactMatch),
-                this.searchWebForCancerContent(query, 'book'),
-                this.searchTriggerWarningDatabase(query, exactMatch)
-            ]);
+            // Try multiple sources for comprehensive data with timeouts
+            const timeoutMs = 15000; // 15 second timeout per search
+            const searchPromises = [
+                this.withTimeout(this.searchGoogleBooks(query, exactMatch), timeoutMs, 'Google Books'),
+                this.withTimeout(this.searchOpenLibrary(query, exactMatch), timeoutMs, 'Open Library'),
+                this.withTimeout(this.searchDoesTheDogDie(query, exactMatch, 'book'), timeoutMs, 'DoesTheDogDie'),
+                this.withTimeout(this.searchGoodreads(query, exactMatch), timeoutMs, 'Goodreads'),
+                this.withTimeout(this.searchWikipedia(query, exactMatch), timeoutMs, 'Wikipedia'),
+                this.withTimeout(this.searchStoryGraph(query, exactMatch), timeoutMs, 'StoryGraph'),
+                this.withTimeout(this.searchWebForCancerContent(query, 'book'), timeoutMs, 'Web Search'),
+                this.withTimeout(this.searchTriggerWarningDatabase(query, exactMatch), timeoutMs, 'Trigger Warning Database')
+            ];
+            
+            const [googleBooksData, openLibraryData, dtddData, goodreadsData, wikipediaData, storyGraphData, webSearchData, triggerWarningData] = await Promise.allSettled(searchPromises);
 
+            // Log any errors or timeouts
+            if (googleBooksData.status === 'rejected') console.error('❌ Google Books error:', googleBooksData.reason);
+            if (openLibraryData.status === 'rejected') console.error('❌ Open Library error:', openLibraryData.reason);
+            if (dtddData.status === 'rejected') console.error('❌ DoesTheDogDie error:', dtddData.reason);
+            if (goodreadsData.status === 'rejected') console.error('❌ Goodreads error:', goodreadsData.reason);
+            if (wikipediaData.status === 'rejected') console.error('❌ Wikipedia error:', wikipediaData.reason);
+            if (storyGraphData.status === 'rejected') console.error('❌ StoryGraph error:', storyGraphData.reason);
+            if (webSearchData.status === 'rejected') console.error('❌ Web Search error:', webSearchData.reason);
+            if (triggerWarningData.status === 'rejected') console.error('❌ Trigger Warning Database error:', triggerWarningData.reason);
+            
             const googleResult = googleBooksData.status === 'fulfilled' ? googleBooksData.value : null;
             const openLibraryResult = openLibraryData.status === 'fulfilled' ? openLibraryData.value : null;
             const dtddResult = dtddData.status === 'fulfilled' ? dtddData.value : null;
