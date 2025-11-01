@@ -3202,15 +3202,17 @@ function initializeApp() {
     const hostname = window.location.hostname.toLowerCase();
     const isProduction = hostname === 'laurenslist.org' || hostname === 'www.laurenslist.org' || hostname === 'srv1010721.hstgr.cloud';
     
-    if (isProduction) {
-        // Hide debug section in production
-        const apiDebugSection = document.getElementById('apiDebugSection');
-        if (apiDebugSection) {
+    const apiDebugSection = document.getElementById('apiDebugSection');
+    if (apiDebugSection) {
+        if (isProduction) {
+            // Hide debug section in production (it starts hidden, but ensure it stays hidden)
             apiDebugSection.classList.add('hidden');
             console.log('🔒 Production mode: API debug section hidden');
+        } else {
+            // Show debug section in dev mode (remove hidden class that's set by default in HTML)
+            apiDebugSection.classList.remove('hidden');
+            console.log('🔧 Development mode: API debug section available');
         }
-    } else {
-        console.log('🔧 Development mode: API debug section available');
     }
     
     // Check if API keys are available, otherwise use demo mode
