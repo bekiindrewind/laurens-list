@@ -64,6 +64,7 @@ services:
       - "traefik.http.routers.laurenslist.tls=true"
       - "traefik.http.routers.laurenslist.entrypoints=web,websecure"
       - "traefik.http.routers.laurenslist.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.laurenslist.loadbalancer.server.port=8080"
       - "traefik.http.middlewares.laurenslist-headers.headers.SSLRedirect=true"
       - "traefik.http.middlewares.laurenslist-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.laurenslist.middlewares=laurenslist-headers@docker"
