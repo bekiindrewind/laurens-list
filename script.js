@@ -1854,107 +1854,158 @@ class LaurensList {
         }
         
         try {
-            // First try the search API to find the correct title
-            const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=${encodeURIComponent(query)}&srlimit=5&origin=*`;
-            console.log(`  🔍 Searching Wikipedia for movie: "${query}"`);
-            console.log(`  🔗 Search URL: ${searchUrl}`);
+            // First try searching with "(film)" appended to improve movie matches
+            const searchQueries = [
+                query,  // Try original query first
+                `${query} (film)`,  // Try with (film) suffix
+                `${query} film`  // Try with film keyword
+            ];
             
-            const searchResponse = await fetch(searchUrl);
-            if (searchResponse.ok) {
-                const searchData = await searchResponse.json();
-                console.log(`  📊 Wikipedia search results:`, searchData);
+            const filmKeywords = ['film', 'movie', 'cinema', 'motion picture'];
+            const bookKeywords = ['book', 'novel', 'author', 'published', 'literature'];
+            const actorKeywords = ['actor', 'actress', 'born', 'personal life', 'career'];
+            
+            const queryLower = query.toLowerCase();
+            
+            // Try each search query
+            for (const searchQuery of searchQueries) {
+                const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=5&origin=*`;
+                console.log(`  🔍 Searching Wikipedia for movie: "${searchQuery}"`);
+                console.log(`  🔗 Search URL: ${searchUrl}`);
                 
-                if (searchData.query && searchData.query.search && searchData.query.search.length > 0) {
-                    const filmKeywords = ['film', 'movie', 'director', 'actor', 'cinema', 'motion picture'];
-                    const bookKeywords = ['book', 'novel', 'author', 'published', 'literature'];
-                    const queryLower = query.toLowerCase();
+                const searchResponse = await fetch(searchUrl);
+                if (searchResponse.ok) {
+                    const searchData = await searchResponse.json();
+                    console.log(`  📊 Wikipedia search results:`, searchData);
                     
-                    // First pass: look for exact or very close title matches
-                    for (const result of searchData.query.search) {
-                        const titleLower = result.title.toLowerCase();
-                        const snippetLower = result.snippet.toLowerCase();
-                        
-                        // Check for exact title match or very close match
-                        const isExactMatch = titleLower === queryLower || 
-                                           titleLower.includes(queryLower) || 
-                                           queryLower.includes(titleLower);
-                        
-                        // Skip if it's clearly a book
-                        const isBook = bookKeywords.some(keyword => 
-                            titleLower.includes(keyword) || snippetLower.includes(keyword)
-                        );
-                        
-                        if (isExactMatch && !isBook) {
-                            console.log(`  🎬 Found exact/close title match: "${result.title}"`);
+                    if (searchData.query && searchData.query.search && searchData.query.search.length > 0) {
+                        // First pass: look for exact or very close title matches
+                        for (const result of searchData.query.search) {
+                            const titleLower = result.title.toLowerCase();
+                            const snippetLower = result.snippet.toLowerCase();
                             
-                            // Now get the page summary
-                            const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(result.title)}`;
-                            console.log(`  🔗 Summary URL: ${summaryUrl}`);
+                            // Normalize titles for comparison (remove "(film)", "(2024)", etc.)
+                            const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').trim();
+                            const normalizedQuery = queryLower.trim();
                             
-                            const summaryResponse = await fetch(summaryUrl);
-                            if (summaryResponse.ok) {
-                                const summaryData = await summaryResponse.json();
-                                console.log(`  📊 Wikipedia summary:`, summaryData);
+                            // Check for exact title match or very close match
+                            const isExactMatch = normalizedTitle === normalizedQuery || 
+                                               normalizedTitle.includes(normalizedQuery) || 
+                                               normalizedQuery.includes(normalizedTitle) ||
+                                               titleLower === queryLower ||
+                                               titleLower.includes(queryLower) ||
+                                               queryLower.includes(titleLower);
+                            
+                            // Skip if it's clearly a book
+                            const isBook = bookKeywords.some(keyword => 
+                                titleLower.includes(keyword) || snippetLower.includes(keyword)
+                            );
+                            
+                            // Skip if it's clearly an actor/person page (unless title exactly matches)
+                            const isActor = !isExactMatch && actorKeywords.some(keyword => 
+                                snippetLower.includes(keyword)
+                            );
+                            
+                            if (isExactMatch && !isBook && !isActor) {
+                                console.log(`  🎬 Found exact/close title match: "${result.title}"`);
                                 
-                                if (summaryData.extract && summaryData.extract.length > 50) {
-                                    console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
-                                    return {
-                                        title: summaryData.title,
-                                        description: summaryData.description || 'Unknown',
-                                        plotSummary: summaryData.extract,
-                                        reviews: '',
-                                        contentWarnings: '',
-                                        publishedDate: 'Unknown',
-                                        pageCount: null,
-                                        categories: [],
-                                        type: 'movie',
-                                        source: 'Wikipedia'
-                                    };
+                                // Now get the page summary
+                                const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(result.title)}`;
+                                console.log(`  🔗 Summary URL: ${summaryUrl}`);
+                                
+                                const summaryResponse = await fetch(summaryUrl);
+                                if (summaryResponse.ok) {
+                                    const summaryData = await summaryResponse.json();
+                                    console.log(`  📊 Wikipedia summary:`, summaryData);
+                                    
+                                    // Verify this is a film page (check description or extract)
+                                    const extractLower = (summaryData.extract || '').toLowerCase();
+                                    const descLower = (summaryData.description || '').toLowerCase();
+                                    const isFilmPage = filmKeywords.some(kw => 
+                                        extractLower.includes(kw) || descLower.includes(kw) || 
+                                        titleLower.includes('(film)')
+                                    );
+                                    
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isFilmPage) {
+                                        console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
+                                        return {
+                                            title: summaryData.title,
+                                            description: summaryData.description || 'Unknown',
+                                            plotSummary: summaryData.extract,
+                                            reviews: '',
+                                            contentWarnings: '',
+                                            publishedDate: 'Unknown',
+                                            pageCount: null,
+                                            categories: [],
+                                            type: 'movie',
+                                            source: 'Wikipedia'
+                                        };
+                                    }
                                 }
                             }
                         }
-                    }
-                    
-                    // Second pass: look for film-related results (but only if no exact match found)
-                    for (const result of searchData.query.search) {
-                        const titleLower = result.title.toLowerCase();
-                        const snippetLower = result.snippet.toLowerCase();
                         
-                        // Check if this is explicitly a film/movie
-                        const isFilm = filmKeywords.some(keyword => 
-                            titleLower.includes(keyword) || snippetLower.includes(keyword)
-                        );
-                        const isBook = bookKeywords.some(keyword => 
-                            titleLower.includes(keyword) || snippetLower.includes(keyword)
-                        );
-                        
-                        // Prioritize film results, avoid book results
-                        if (isFilm && !isBook) {
-                            console.log(`  🎬 Found film-related match: "${result.title}"`);
+                        // Second pass: look for film-related results (but only if no exact match found)
+                        for (const result of searchData.query.search) {
+                            const titleLower = result.title.toLowerCase();
+                            const snippetLower = result.snippet.toLowerCase();
                             
-                            // Now get the page summary
-                            const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(result.title)}`;
-                            console.log(`  🔗 Summary URL: ${summaryUrl}`);
+                            // Normalize for comparison
+                            const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').trim();
+                            const normalizedQuery = queryLower.trim();
+                            const isExactMatch = normalizedTitle === normalizedQuery || 
+                                               normalizedTitle.includes(normalizedQuery) || 
+                                               normalizedQuery.includes(normalizedTitle);
                             
-                            const summaryResponse = await fetch(summaryUrl);
-                            if (summaryResponse.ok) {
-                                const summaryData = await summaryResponse.json();
-                                console.log(`  📊 Wikipedia summary:`, summaryData);
+                            // Check if this is explicitly a film/movie (not actor/person)
+                            const isFilm = filmKeywords.some(keyword => 
+                                titleLower.includes(keyword) || snippetLower.includes(keyword) ||
+                                titleLower.includes('(film)')
+                            );
+                            const isBook = bookKeywords.some(keyword => 
+                                titleLower.includes(keyword) || snippetLower.includes(keyword)
+                            );
+                            // Skip actor pages
+                            const isActor = !isExactMatch && actorKeywords.some(keyword => 
+                                snippetLower.includes(keyword)
+                            );
+                            
+                            // Prioritize film results, avoid book and actor results
+                            if (isFilm && !isBook && !isActor) {
+                                console.log(`  🎬 Found film-related match: "${result.title}"`);
                                 
-                                if (summaryData.extract && summaryData.extract.length > 50) {
-                                    console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
-                                    return {
-                                        title: summaryData.title,
-                                        description: summaryData.description || 'Unknown',
-                                        plotSummary: summaryData.extract,
-                                        reviews: '',
-                                        contentWarnings: '',
-                                        publishedDate: 'Unknown',
-                                        pageCount: null,
-                                        categories: [],
-                                        type: 'movie',
-                                        source: 'Wikipedia'
-                                    };
+                                // Now get the page summary
+                                const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(result.title)}`;
+                                console.log(`  🔗 Summary URL: ${summaryUrl}`);
+                                
+                                const summaryResponse = await fetch(summaryUrl);
+                                if (summaryResponse.ok) {
+                                    const summaryData = await summaryResponse.json();
+                                    console.log(`  📊 Wikipedia summary:`, summaryData);
+                                    
+                                    // Verify this is a film page
+                                    const extractLower = (summaryData.extract || '').toLowerCase();
+                                    const descLower = (summaryData.description || '').toLowerCase();
+                                    const isFilmPage = filmKeywords.some(kw => 
+                                        extractLower.includes(kw) || descLower.includes(kw) || 
+                                        titleLower.includes('(film)')
+                                    );
+                                    
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isFilmPage) {
+                                        console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
+                                        return {
+                                            title: summaryData.title,
+                                            description: summaryData.description || 'Unknown',
+                                            plotSummary: summaryData.extract,
+                                            reviews: '',
+                                            contentWarnings: '',
+                                            publishedDate: 'Unknown',
+                                            pageCount: null,
+                                            categories: [],
+                                            type: 'movie',
+                                            source: 'Wikipedia'
+                                        };
+                                    }
                                 }
                             }
                         }
