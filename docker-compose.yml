@@ -73,6 +73,12 @@ services:
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
+      args:
+        # SECURITY: API keys should be provided via environment variables or .env file
+        # Create /root/.env with: TMDB_API_KEY=xxx, GOOGLE_BOOKS_API_KEY=xxx, DOESTHEDOGDIE_API_KEY=xxx
+        TMDB_API_KEY: ${TMDB_API_KEY:-YOUR_TMDB_API_KEY}
+        GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}
+        DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}
     restart: always
     labels:
       - "traefik.enable=true"
@@ -86,6 +92,8 @@ services:
       - "traefik.http.routers.laurenslist-dev.middlewares=laurenslist-dev-headers@docker"
     environment:
       - NODE_ENV=development
+      # Also pass as runtime environment variable for server.js
+      - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
 
 volumes:
   traefik_data:
