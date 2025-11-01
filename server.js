@@ -15,9 +15,20 @@ app.use((req, res, next) => {
     next();
 });
 
-// Load API keys from config
-const config = require('./config.production.js');
-const DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY || process.env.DOESTHEDOGDIE_API_KEY;
+// Load API keys from config (if exists) or environment variables
+// SECURITY: config.production.js is not in Git, so it may not exist
+// Fall back to environment variables which are injected during Docker build
+let DOESTHEDOGDIE_API_KEY = process.env.DOESTHEDOGDIE_API_KEY;
+
+try {
+    const config = require('./config.production.js');
+    if (config && config.CONFIG && config.CONFIG.DOESTHEDOGDIE_API_KEY) {
+        DOESTHEDOGDIE_API_KEY = config.CONFIG.DOESTHEDOGDIE_API_KEY;
+    }
+} catch (error) {
+    // config.production.js doesn't exist or can't be loaded - use environment variables
+    console.log('⚠️ config.production.js not found, using environment variables for API keys');
+}
 
 // Note: Hardcover API removed - blocked by Cloudflare protection
 // Server-side requests cannot bypass Cloudflare's JavaScript challenge
