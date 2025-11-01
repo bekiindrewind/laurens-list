@@ -54,9 +54,19 @@ app.get('/api/doesthedogdie', async (req, res) => {
     }
 });
 
-// Serve static files from the current directory (CSS, JS, images, etc.)
+// Serve static files from the current directory (CSS, JS, images, favicons, etc.)
 app.use(express.static(__dirname, {
-    index: false // Don't serve index.html automatically, let routes handle it
+    index: false, // Don't serve index.html automatically, let routes handle it
+    setHeaders: (res, path) => {
+        // Set proper content type for favicon files
+        if (path.endsWith('.png')) {
+            res.setHeader('Content-Type', 'image/png');
+        } else if (path.endsWith('.ico')) {
+            res.setHeader('Content-Type', 'image/x-icon');
+        } else if (path.endsWith('.webmanifest')) {
+            res.setHeader('Content-Type', 'application/manifest+json');
+        }
+    }
 }));
 
 // Explicit route for root
@@ -64,9 +74,9 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Catch-all for all other routes (except API) - must be last
-app.get(/^(?!\/api).*/, (req, res) => {
-    // Serve index.html for all non-API routes (SPA routing)
+// Catch-all for all other routes (except API and static files) - must be last
+app.get(/^(?!\/api)(?!.*\.(png|ico|jpg|jpeg|gif|svg|css|js|webmanifest|json|txt|pdf)$).*/, (req, res) => {
+    // Serve index.html for all non-API routes that aren't static files (SPA routing)
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
