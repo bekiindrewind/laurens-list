@@ -148,6 +148,14 @@ app.use(express.static(__dirname, {
         } else if (path.endsWith('.webmanifest')) {
             res.setHeader('Content-Type', 'application/manifest+json');
         }
+        
+        // SECURITY: Disable caching for script.js to ensure API keys are always fresh
+        // This prevents browsers from serving cached versions with placeholder keys
+        if (path.endsWith('script.js')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
     }
 }));
 
