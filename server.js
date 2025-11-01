@@ -2,12 +2,28 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = 8080;
 
 app.use(cors());
 app.use(express.json());
+
+// SECURITY: Rate limiting for API endpoints to prevent abuse and DoS attacks
+// Allow 20 requests per 15 minutes per IP for API endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // Limit each IP to 20 requests per windowMs
+    message: {
+        error: 'Too many requests from this IP, please try again later.',
+        retryAfter: '15 minutes'
+    },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    skipSuccessfulRequests: false, // Count successful requests
+    skipFailedRequests: true // Don't count failed requests (4xx, 5xx errors)
+});
 
 // Debug middleware - log all requests
 app.use((req, res, next) => {
@@ -64,7 +80,8 @@ function sanitizeServerInput(input) {
 }
 
 // DoesTheDogDie proxy endpoint
-app.get('/api/doesthedogdie', async (req, res) => {
+// SECURITY: Apply rate limiting to prevent abuse
+app.get('/api/doesthedogdie', apiLimiter, async (req, res) => {
     try {
         // SECURITY: Sanitize query parameter before using
         const rawQuery = req.query.q;
@@ -106,7 +123,8 @@ app.get('/api/doesthedogdie', async (req, res) => {
 });
 
 // Trigger Warning Database proxy endpoint
-app.get('/api/triggerwarning', async (req, res) => {
+// SECURITY: Apply rate limiting to prevent abuse
+app.get('/api/triggerwarning', apiLimiter, async (req, res) => {
     try {
         const url = 'https://triggerwarningdatabase.com/terminal-illnesses/';
         

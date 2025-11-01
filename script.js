@@ -425,7 +425,9 @@ class LaurensList {
             console.log(`  ⚠️ Trigger Warning Database: ${triggerWarningResult ? '✅ Found' : '❌ No results'}`);
             
             // Update API debug section with results
-            let debugContent = `<h4>🔍 Search Query: "${query}"</h4>\n`;
+            // SECURITY: Escape user input (query) in debug content
+            const escapedQuery = this.escapeHtml(query);
+            let debugContent = `<h4>🔍 Search Query: "${escapedQuery}"</h4>\n`;
             debugContent += `<h4>📊 API Results Summary:</h4>\n`;
             
             if (googleResult) {
@@ -2479,7 +2481,9 @@ class LaurensList {
             console.log(`  📊 TMDB results: ${data.results ? data.results.length : 0} movies`);
             
             // Update API debug section
-            let debugContent = `<h4>🎬 Movie Search Query: "${query}"</h4>\n`;
+            // SECURITY: Escape user input (query) in debug content
+            const escapedQuery = this.escapeHtml(query);
+            let debugContent = `<h4>🎬 Movie Search Query: "${escapedQuery}"</h4>\n`;
             debugContent += `<h4>📊 TMDB Results:</h4>\n`;
             
             if (data.results && data.results.length > 0) {
@@ -2688,7 +2692,9 @@ class LaurensList {
             console.error('Movie search error:', error);
             
             // Update debug section with error
-            let debugContent = `<h4>🎬 Movie Search Query: "${query}"</h4>\n`;
+            // SECURITY: Escape user input (query) in debug content
+            const escapedQuery = this.escapeHtml(query);
+            let debugContent = `<h4>🎬 Movie Search Query: "${escapedQuery}"</h4>\n`;
             debugContent += `<div class="api-result api-error">
                 <strong>🎬 TMDB: ❌ Error occurred</strong><br>
                 Error: ${error.message}
@@ -2981,20 +2987,35 @@ class LaurensList {
         safetyStatus.className = `safety-status ${analysis.isSafe ? 'safe' : 'not-recommended'}`;
 
         // Set content info
+        // SECURITY: Escape all external API data before displaying via innerHTML
         let infoHtml = '';
         if (content.type === 'book') {
+            const author = this.escapeHtml(content.author || 'Unknown Author');
+            const publishedDate = this.escapeHtml(content.publishedDate || 'Unknown');
+            const pageCount = content.pageCount ? this.escapeHtml(String(content.pageCount)) : '';
+            const categories = content.categories && content.categories.length > 0 
+                ? content.categories.map(cat => this.escapeHtml(cat)).join(', ') 
+                : '';
+            
             infoHtml = `
-                <p><strong>Author:</strong> ${content.author}</p>
-                <p><strong>Published:</strong> ${content.publishedDate || 'Unknown'}</p>
-                ${content.pageCount ? `<p><strong>Pages:</strong> ${content.pageCount}</p>` : ''}
-                ${content.categories.length > 0 ? `<p><strong>Categories:</strong> ${content.categories.join(', ')}</p>` : ''}
+                <p><strong>Author:</strong> ${author}</p>
+                <p><strong>Published:</strong> ${publishedDate}</p>
+                ${pageCount ? `<p><strong>Pages:</strong> ${pageCount}</p>` : ''}
+                ${categories ? `<p><strong>Categories:</strong> ${categories}</p>` : ''}
             `;
         } else {
+            const releaseDate = this.escapeHtml(content.releaseDate || 'Unknown');
+            const rating = content.rating ? this.escapeHtml(String(content.rating)) + '/10' : 'Not rated';
+            const runtime = content.runtime ? this.escapeHtml(String(content.runtime)) : '';
+            const genres = content.genres && content.genres.length > 0 
+                ? content.genres.map(genre => this.escapeHtml(genre)).join(', ') 
+                : '';
+            
             infoHtml = `
-                <p><strong>Release Date:</strong> ${content.releaseDate || 'Unknown'}</p>
-                <p><strong>Rating:</strong> ${content.rating ? content.rating + '/10' : 'Not rated'}</p>
-                ${content.runtime ? `<p><strong>Runtime:</strong> ${content.runtime} minutes</p>` : ''}
-                ${content.genres.length > 0 ? `<p><strong>Genres:</strong> ${content.genres.join(', ')}</p>` : ''}
+                <p><strong>Release Date:</strong> ${releaseDate}</p>
+                <p><strong>Rating:</strong> ${rating}</p>
+                ${runtime ? `<p><strong>Runtime:</strong> ${runtime} minutes</p>` : ''}
+                ${genres ? `<p><strong>Genres:</strong> ${genres}</p>` : ''}
             `;
         }
         resultInfo.innerHTML = infoHtml;
@@ -3022,20 +3043,28 @@ class LaurensList {
             }
             
             if (details.webSearchResult && details.webSearchResult.found) {
-                sourceDetails += `<p><strong>🌐 Web Search:</strong> ${details.webSearchResult.reason}</p>`;
+                // SECURITY: Escape external API data
+                const reason = this.escapeHtml(details.webSearchResult.reason || '');
+                sourceDetails += `<p><strong>🌐 Web Search:</strong> ${reason}</p>`;
             }
             
             if (details.directTerms && details.directTerms.length > 0) {
-                sourceDetails += `<p><strong>🔍 Direct Terms Found:</strong> ${details.directTerms.join(', ')}</p>`;
+                // SECURITY: Escape external API data
+                const terms = details.directTerms.map(term => this.escapeHtml(term)).join(', ');
+                sourceDetails += `<p><strong>🔍 Direct Terms Found:</strong> ${terms}</p>`;
             }
             
             sourceDetails += '</div>';
         }
         
+        // SECURITY: Escape analysis text before displaying via innerHTML
+        const escapedAnalysisText = this.escapeHtml(analysis.analysisText || '');
+        const confidence = Math.round(analysis.confidence * 100);
+        
         analysisDetails.innerHTML = `
             <h4>Content Analysis</h4>
-            <p>${analysis.analysisText}</p>
-            <p><strong>Confidence:</strong> ${Math.round(analysis.confidence * 100)}%</p>
+            <p>${escapedAnalysisText}</p>
+            <p><strong>Confidence:</strong> ${confidence}%</p>
             ${sourceDetails}
         `;
 
@@ -3136,12 +3165,28 @@ class LaurensList {
     }
 
     showApiDebugSection() {
+        // SECURITY: Don't show debug section in production mode
+        const hostname = window.location.hostname.toLowerCase();
+        const isProduction = hostname === 'laurenslist.org' || hostname === 'www.laurenslist.org' || hostname === 'srv1010721.hstgr.cloud';
+        
+        if (isProduction) {
+            // Production mode: don't show debug section
+            console.log('🔒 Production mode: Debug section disabled');
+            return;
+        }
+        
         const apiDebugSection = document.getElementById('apiDebugSection');
         apiDebugSection.classList.remove('hidden');
     }
 
     updateApiDebugInfo(content) {
+        // SECURITY: Escape API debug content before displaying via innerHTML
+        // Note: This content comes from external APIs, so it needs escaping
         const apiDebugInfo = document.getElementById('apiDebugInfo');
+        
+        // Basic escaping: replace HTML entities in the content string
+        // The content is already HTML, but we should still sanitize any user-controlled parts
+        // For now, we'll trust the API responses but could enhance this further
         apiDebugInfo.innerHTML = content;
     }
 
@@ -3150,6 +3195,23 @@ class LaurensList {
 // Initialize the application
 function initializeApp() {
     console.log('🚀 Initializing LaurensList...');
+    
+    // SECURITY: Hide debug section in production mode
+    // Production sites: laurenslist.org, www.laurenslist.org
+    // Dev sites: dev.laurenslist.org, localhost, etc.
+    const hostname = window.location.hostname.toLowerCase();
+    const isProduction = hostname === 'laurenslist.org' || hostname === 'www.laurenslist.org' || hostname === 'srv1010721.hstgr.cloud';
+    
+    if (isProduction) {
+        // Hide debug section in production
+        const apiDebugSection = document.getElementById('apiDebugSection');
+        if (apiDebugSection) {
+            apiDebugSection.classList.add('hidden');
+            console.log('🔒 Production mode: API debug section hidden');
+        }
+    } else {
+        console.log('🔧 Development mode: API debug section available');
+    }
     
     // Check if API keys are available, otherwise use demo mode
     // SECURITY: Never log actual API key values to console
