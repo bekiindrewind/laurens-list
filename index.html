@@ -221,16 +221,13 @@
                 document.head.appendChild(mainScript);
             };
             script.onerror = function() {
-                console.error(`❌ Failed to load ${configFile}, falling back to production config`);
-                // Fallback to production config
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = 'config.production.js';
-                fallbackScript.onload = function() {
-                    const mainScript = document.createElement('script');
-                    mainScript.src = 'script.js';
-                    document.head.appendChild(mainScript);
-                };
-                document.head.appendChild(fallbackScript);
+                console.warn(`⚠️ Failed to load ${configFile}, continuing without config file`);
+                console.log('📝 Note: API keys should be injected at build time or via environment variables');
+                // SECURITY: If config file doesn't exist, skip it and load script.js directly
+                // script.js will use build-time injected keys or environment variables
+                const mainScript = document.createElement('script');
+                mainScript.src = 'script.js';
+                document.head.appendChild(mainScript);
             };
             document.head.appendChild(script);
         } else {
