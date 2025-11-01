@@ -4,10 +4,12 @@ A trigger warning website that helps users identify sensitive content in books a
 
 ## Features
 
-- **Book & Movie Search**: Search for books using Google Books API and Open Library
-- **Movie Search**: Search for movies using TMDB API
-- **Cancer Content Detection**: AI-powered analysis to detect cancer-related themes
-- **Toggle Analysis**: Hide/show detailed content analysis
+- **Book & Movie Search**: Search for books using Google Books API, Open Library, Goodreads, StoryGraph, Wikipedia, Trigger Warning Database, and web search
+- **Movie Search**: Search for movies using TMDB API, DoesTheDogDie, IMDb cancer lists, and Wikipedia
+- **Cancer Content Detection**: AI-powered analysis to detect cancer-related themes using multiple data sources
+- **Smart Term Detection**: Cancer-specific term detection (avoids false positives from generic death terms)
+- **Multi-Source Validation**: Cross-references multiple APIs and databases for accurate results
+- **Toggle Analysis**: Hide/show detailed content analysis with source information
 - **Known Content Database**: Curated list of books/movies with cancer themes
 - **Clean UI**: Modern, responsive design
 
@@ -29,16 +31,17 @@ A trigger warning website that helps users identify sensitive content in books a
    ```
 
 2. Set up your API keys:
-   - Copy `config.example.js` to `config.js`
+   - Copy `config.production.js` to `config.js` (for local development)
    - Add your actual API keys to `config.js`:
    ```javascript
    const CONFIG = {
        TMDB_API_KEY: 'your_tmdb_api_key',
        GOOGLE_BOOKS_API_KEY: 'your_google_books_api_key',
-       HARDCOVER_BEARER_TOKEN: 'your_hardcover_token',
        DOESTHEDOGDIE_API_KEY: 'your_dtdd_api_key'
    };
    ```
+   
+   **Note**: For production deployment, API keys are injected during the Docker build process.
 
 3. Open `index.html` in your web browser
 
@@ -81,16 +84,35 @@ laurens-list/
 ### Book Search
 1. **Google Books API**: Primary search with exact title matching
 2. **Open Library API**: Fallback search for additional results
-3. **Smart Selection**: Prioritizes exact title matches over content length
+3. **Goodreads**: User reviews and detailed book descriptions
+4. **StoryGraph**: Content warnings and trigger warnings
+5. **Wikipedia**: Plot summaries and thematic analysis
+6. **Trigger Warning Database**: Curated database for terminal illnesses/cancer warnings
+7. **Web Search**: Additional cancer content detection
+8. **Smart Selection**: Prioritizes exact title matches over content length
+
+### Movie Search
+1. **TMDB API**: Primary movie search
+2. **DoesTheDogDie**: Comprehensive trigger warning database (requires cancer-specific terms)
+3. **IMDb Cancer Lists**: Curated lists of movies about cancer
+4. **Wikipedia**: Category listings for films about cancer
+5. **Web Search**: Additional cancer content detection
 
 ### Content Analysis
-1. **Term Detection**: Searches for cancer-related keywords
+1. **Cancer-Specific Term Detection**: Searches for cancer-related keywords (avoids false positives from generic death terms)
 2. **Known Content**: Checks against curated database of cancer-themed works
-3. **Confidence Scoring**: Provides confidence level for analysis
+3. **Multi-Source Validation**: Cross-references multiple APIs and databases
+4. **Confidence Scoring**: Provides confidence level (80-95%) for analysis
+5. **Source Attribution**: Shows which sources contributed to the analysis
 
 ### Safety Determination
-- **SAFE**: No cancer-related content detected
-- **NOT RECOMMENDED**: Cancer-related content found
+- **SAFE**: No cancer-related content detected across all sources
+- **NOT RECOMMENDED**: Cancer-related content found in one or more sources
+
+### Key Improvements
+- **Reduced False Positives**: Generic death terms (e.g., "death", "dying") alone no longer trigger "not recommended" status
+- **High-Confidence Detection**: Only cancer-specific terms (e.g., "cancer", "chemotherapy", "oncology") trigger DoesTheDogDie warnings
+- **Comprehensive Coverage**: Multiple data sources ensure thorough analysis
 
 ## Contributing
 
