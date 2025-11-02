@@ -1889,13 +1889,25 @@ class LaurensList {
                             const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').trim();
                             const normalizedQuery = queryLower.trim();
                             
-                            // Check for exact title match or very close match
-                            const isExactMatch = normalizedTitle === normalizedQuery || 
-                                               normalizedTitle.includes(normalizedQuery) || 
-                                               normalizedQuery.includes(normalizedTitle) ||
-                                               titleLower === queryLower ||
-                                               titleLower.includes(queryLower) ||
-                                               queryLower.includes(titleLower);
+                            // Check for exact title match - be very strict to avoid matching wrong movies
+                            // Require the normalized title to start with the query or be very close
+                            // This prevents "My Dog Skip" from matching "My Oxford Year"
+                            const normalizedTitleStartsWithQuery = normalizedTitle.startsWith(normalizedQuery);
+                            const normalizedQueryStartsWithTitle = normalizedQuery.startsWith(normalizedTitle);
+                            const titlesAreVerySimilar = normalizedTitle === normalizedQuery || 
+                                                        (Math.abs(normalizedTitle.length - normalizedQuery.length) <= 3 && 
+                                                         normalizedTitle.includes(normalizedQuery.substring(0, Math.max(5, normalizedQuery.length - 2))));
+                            
+                            // Also check if all significant words match (for cases like "My Oxford Year (film)")
+                            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2); // Ignore short words like "my", "a", "the"
+                            const titleWords = normalizedTitle.split(/\s+/).filter(w => w.length > 2);
+                            const allSignificantWordsMatch = queryWords.length > 0 && 
+                                                           queryWords.every(qw => titleWords.some(tw => tw.startsWith(qw) || qw.startsWith(tw)));
+                            
+                            const isExactMatch = normalizedTitle === normalizedQuery ||
+                                               normalizedTitleStartsWithQuery ||
+                                               normalizedQueryStartsWithTitle ||
+                                               (titlesAreVerySimilar && allSignificantWordsMatch);
                             
                             // Skip if it's clearly a book
                             const isBook = bookKeywords.some(keyword => 
