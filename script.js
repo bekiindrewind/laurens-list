@@ -1854,19 +1854,42 @@ class LaurensList {
         }
         
         try {
+            // Normalize common title variations
+            // "step mom" -> "stepmom", "step-mom" -> "stepmom", etc.
+            let normalizedQuery = query.trim();
+            normalizedQuery = normalizedQuery.replace(/\s+/g, ' '); // Normalize whitespace
+            normalizedQuery = normalizedQuery.replace(/[-_]/g, ''); // Remove hyphens/underscores
+            // Don't remove spaces for multi-word titles like "My Oxford Year"
+            // But handle compound words that might be written as two words
+            const compoundWords = [
+                { pattern: /\bstep\s+mom\b/gi, replacement: 'stepmom' },
+                { pattern: /\bstep\s+dad\b/gi, replacement: 'stepdad' },
+                { pattern: /\bstep\s+father\b/gi, replacement: 'stepfather' },
+                { pattern: /\bstep\s+mother\b/gi, replacement: 'stepmother' }
+            ];
+            
+            for (const compound of compoundWords) {
+                normalizedQuery = normalizedQuery.replace(compound.pattern, compound.replacement);
+            }
+            
             // First try searching with "(film)" appended to improve movie matches
             // Prioritize film-specific searches to avoid matching actor/person pages
             const searchQueries = [
-                `${query} (film)`,  // Try with (film) suffix first (most specific)
-                `${query} film`,  // Try with film keyword
-                query  // Try original query last (may match actors/people)
+                `${normalizedQuery} (film)`,  // Try with (film) suffix first (most specific)
+                `${normalizedQuery} film`,  // Try with film keyword
+                normalizedQuery  // Try normalized query
             ];
+            
+            // If normalized query differs from original, also try original
+            if (normalizedQuery !== query.trim()) {
+                searchQueries.push(`${query} (film)`, `${query} film`, query);
+            }
             
             const filmKeywords = ['film', 'movie', 'cinema', 'motion picture'];
             const bookKeywords = ['book', 'novel', 'author', 'published', 'literature'];
             const actorKeywords = ['actor', 'actress', 'born', 'personal life', 'career'];
             
-            const queryLower = query.toLowerCase();
+            const queryLower = normalizedQuery.toLowerCase();
             
             // Try each search query
             for (const searchQuery of searchQueries) {
@@ -1889,25 +1912,30 @@ class LaurensList {
                             const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').trim();
                             const normalizedQuery = queryLower.trim();
                             
-                            // Check for exact title match - be very strict to avoid matching wrong movies
-                            // Require the normalized title to start with the query or be very close
+                            // Check for exact title match - be VERY strict to avoid matching wrong movies
                             // This prevents "My Dog Skip" from matching "My Oxford Year"
-                            const normalizedTitleStartsWithQuery = normalizedTitle.startsWith(normalizedQuery);
-                            const normalizedQueryStartsWithTitle = normalizedQuery.startsWith(normalizedTitle);
-                            const titlesAreVerySimilar = normalizedTitle === normalizedQuery || 
-                                                        (Math.abs(normalizedTitle.length - normalizedQuery.length) <= 3 && 
-                                                         normalizedTitle.includes(normalizedQuery.substring(0, Math.max(5, normalizedQuery.length - 2))));
+                            // Require either exact match or all significant words to match exactly
                             
-                            // Also check if all significant words match (for cases like "My Oxford Year (film)")
-                            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2); // Ignore short words like "my", "a", "the"
+                            // Split into significant words (ignore short words like "my", "a", "the", "of")
+                            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
                             const titleWords = normalizedTitle.split(/\s+/).filter(w => w.length > 2);
-                            const allSignificantWordsMatch = queryWords.length > 0 && 
-                                                           queryWords.every(qw => titleWords.some(tw => tw.startsWith(qw) || qw.startsWith(tw)));
                             
-                            const isExactMatch = normalizedTitle === normalizedQuery ||
-                                               normalizedTitleStartsWithQuery ||
-                                               normalizedQueryStartsWithTitle ||
-                                               (titlesAreVerySimilar && allSignificantWordsMatch);
+                            // Exact match: normalized titles are identical
+                            const exactMatch = normalizedTitle === normalizedQuery;
+                            
+                            // Word-by-word match: all significant words from query must be in title in order
+                            // For "my oxford year" -> ["oxford", "year"]
+                            // For "my dog skip" -> ["dog", "skip"]
+                            // They don't match!
+                            const allQueryWordsInTitle = queryWords.length > 0 && 
+                                                         queryWords.every(qw => titleWords.includes(qw));
+                            
+                            // Also check if title starts with query (for "(film)" suffix cases)
+                            const titleStartsWithQuery = normalizedTitle.startsWith(normalizedQuery + ' ');
+                            
+                            const isExactMatch = exactMatch || 
+                                               (allQueryWordsInTitle && titleWords.length === queryWords.length) ||
+                                               titleStartsWithQuery;
                             
                             // Skip if it's clearly a book
                             const isBook = bookKeywords.some(keyword => 
@@ -1974,19 +2002,30 @@ class LaurensList {
                         }
                         
                         // Second pass: look for film-related results (but only if no exact match found)
+                        // Still require strict title matching to prevent wrong movies
                         for (const result of searchData.query.search) {
                             const titleLower = result.title.toLowerCase();
                             const snippetLower = result.snippet.toLowerCase();
                             
                             // Normalize for comparison
-                            const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').trim();
+                            const normalizedTitle = titleLower.replace(/\s*\(film\)/g, '').replace(/\s*\(\d{4}\)/g, '').replace(/\s*\([^)]*film[^)]*\)/gi, '').trim();
                             const normalizedQuery = queryLower.trim();
-                            const isExactMatch = normalizedTitle === normalizedQuery || 
-                                               normalizedTitle.includes(normalizedQuery) || 
-                                               normalizedQuery.includes(normalizedTitle);
+                            
+                            // Apply same strict matching as first pass
+                            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
+                            const titleWords = normalizedTitle.split(/\s+/).filter(w => w.length > 2);
+                            
+                            const exactMatch = normalizedTitle === normalizedQuery;
+                            const allQueryWordsInTitle = queryWords.length > 0 && 
+                                                         queryWords.every(qw => titleWords.includes(qw));
+                            const titleStartsWithQuery = normalizedTitle.startsWith(normalizedQuery + ' ');
+                            
+                            const isExactMatch = exactMatch || 
+                                               (allQueryWordsInTitle && titleWords.length === queryWords.length) ||
+                                               titleStartsWithQuery;
                             
                             // Check if this is explicitly a film/movie (not actor/person)
-                            const hasFilmInTitle = titleLower.includes('(film)') || titleLower.includes(' film') || titleLower.includes(' movie');
+                            const hasFilmInTitle = titleLower.includes('(film)') || titleLower.includes('(movie)');
                             const isFilm = hasFilmInTitle || filmKeywords.some(keyword => 
                                 snippetLower.includes(keyword)
                             );
@@ -1996,18 +2035,18 @@ class LaurensList {
                             
                             // Detect if this looks like a person name (two words, likely first/last name)
                             // Skip person pages unless the title explicitly says "(film)" or "film"
-                            const titleWords = titleLower.trim().split(/\s+/);
-                            const looksLikePersonName = titleWords.length === 2 && !hasFilmInTitle && 
-                                                       !normalizedTitle.includes(normalizedQuery);
+                            const titleWordList = titleLower.trim().split(/\s+/);
+                            const looksLikePersonName = titleWordList.length === 2 && !hasFilmInTitle && 
+                                                       !isExactMatch;
                             
                             // Skip actor pages
                             const isActor = !isExactMatch && (actorKeywords.some(keyword => 
                                 snippetLower.includes(keyword)
                             ) || looksLikePersonName);
                             
-                            // Prioritize film results, avoid book and actor results
-                            // Only accept if it has "(film)" in title OR we have strong evidence it's a film (not a person)
-                            if ((isFilm || hasFilmInTitle) && !isBook && !isActor) {
+                            // Prioritize film results, but ONLY if title actually matches
+                            // This prevents "Don't Tell Mom..." from matching "Step Mom"
+                            if (isExactMatch && (isFilm || hasFilmInTitle) && !isBook && !isActor) {
                                 console.log(`  🎬 Found film-related match: "${result.title}"`);
                                 
                                 // Now get the page summary
