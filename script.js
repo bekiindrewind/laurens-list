@@ -2404,8 +2404,7 @@ class LaurensList {
                 return {
                     found: true,
                     reason: 'Title contains cancer-related keywords',
-                    confidence: 85,
-                    snippets: []
+                    confidence: 85
                 };
             }
             
@@ -2427,59 +2426,15 @@ class LaurensList {
                 return {
                     found: true,
                     reason: 'Title matches known cancer-themed pattern',
-                    confidence: 90,
-                    snippets: []
+                    confidence: 90
                 };
-            }
-            
-            // Try Google Custom Search API (if available via server proxy)
-            try {
-                console.log(`  🔍 Attempting Google Custom Search API for: "${query}" cancer`);
-                const searchUrl = `/api/google-search?q=${encodeURIComponent(query)}`;
-                
-                const response = await fetch(searchUrl);
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log(`  📊 Google Custom Search response:`, data);
-                    
-                    if (data.found && data.snippets && data.snippets.length > 0) {
-                        // Analyze snippets for cancer-related content
-                        const allSnippets = data.snippets.join(' ').toLowerCase();
-                        const foundCancerTerms = CANCER_TERMS.filter(term => 
-                            allSnippets.includes(term.toLowerCase())
-                        );
-                        
-                        if (foundCancerTerms.length > 0) {
-                            console.log(`  🎯 Google Custom Search found cancer-related content: ${foundCancerTerms.join(', ')}`);
-                            return {
-                                found: true,
-                                reason: `Google search found cancer-related content: ${foundCancerTerms.slice(0, 3).join(', ')}`,
-                                confidence: 85,
-                                snippets: data.snippets,
-                                foundTerms: foundCancerTerms
-                            };
-                        } else {
-                            console.log(`  ✅ Google Custom Search found results but no cancer terms detected`);
-                        }
-                    } else {
-                        console.log(`  ✅ Google Custom Search: No cancer-related results found`);
-                    }
-                } else if (response.status === 503) {
-                    console.log(`  ℹ️ Google Custom Search API not configured (optional feature)`);
-                } else {
-                    console.log(`  ⚠️ Google Custom Search API error: ${response.status}`);
-                }
-            } catch (searchError) {
-                console.log(`  ⚠️ Google Custom Search API error:`, searchError.message);
-                // Continue with fallback approach
             }
             
             console.log(`  🌐 Web search: No obvious cancer content detected`);
             return {
                 found: false,
                 reason: 'No cancer-related keywords or patterns found',
-                confidence: 60,
-                snippets: []
+                confidence: 60
             };
             
         } catch (error) {
@@ -2946,8 +2901,6 @@ class LaurensList {
                 content.wikipediaInfo ? content.wikipediaInfo.description || '' : '',
                 // Include web search results if available
                 content.webSearchResult ? (content.webSearchResult.found ? content.webSearchResult.reason : '') : '',
-                // Include Google Custom Search snippets if available
-                content.webSearchResult && content.webSearchResult.snippets ? content.webSearchResult.snippets.join(' ') : '',
                 // Include DoesTheDogDie results if available
                 content.dtddResult ? (content.dtddResult.description || '') : '',
                 content.dtddResult ? (content.dtddResult.contentWarnings || '') : '',
