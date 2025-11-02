@@ -2860,6 +2860,7 @@ class LaurensList {
         console.log(`  Title: "${content.title}"`);
         console.log(`  Description length: ${content.description?.length || 0} chars`);
         console.log(`  Plot summary length: ${content.plotSummary?.length || 0} chars`);
+        console.log(`  Wikipedia plot summary length: ${content.wikipediaInfo?.plotSummary?.length || 0} chars`);
         console.log(`  Reviews length: ${content.reviews?.length || 0} chars`);
         console.log(`  Content warnings: "${content.contentWarnings || 'None'}"`);
         console.log(`  Source: "${content.source || 'Unknown'}"`);
