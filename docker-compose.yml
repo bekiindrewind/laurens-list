@@ -158,7 +158,7 @@ services:
       - "traefik.http.middlewares.webhook-prod-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.webhook-prod.middlewares=webhook-prod-headers@docker"
     environment:
-      - WEBHOOK_SECRET_PROD=${WEBHOOK_SECRET_PROD:-your_production_webhook_secret_here}
+      - WEBHOOK_SECRET_PROD=${WEBHOOK_SECRET_PROD:-bf8ea1a4386d5fec12a7d5a9d5221dc38a9e82bc5e9baa606a01787318b2209e}
     volumes:
       - /root/laurens-list:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
