@@ -56,6 +56,7 @@ services:
       - /local-files:/files
 
   laurenslist:
+    image: laurens-list-laurenslist:latest
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
