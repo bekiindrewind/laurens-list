@@ -57,8 +57,10 @@ A condensed guide for understanding and reusing this architecture.
 
 ### Automated Deployment (Dev)
 ```
-GitHub → Webhook POST → Webhook Listener → Git Pull → Docker Build → Container → Traefik → Users
+GitHub → Webhook POST → Webhook Listener (202 Accepted) → Async Deployment → Git Pull → Docker Build → Container → Traefik → Users
 ```
+
+**Note**: Webhook responds immediately with `202 Accepted` to prevent GitHub timeouts, then runs deployment asynchronously (takes 16-36 seconds).
 
 ### Manual Deployment (Production)
 ```

@@ -84,6 +84,13 @@ When setting up automated deployment via GitHub webhooks or similar:
 - Verify signature before processing: `crypto.createHmac('sha256', secret).update(rawBody).digest('hex')`
 - Check for `req.rawBody` existence before using it (prevents 500 errors)
 
+### Webhook Timeout Prevention
+- **GitHub times out after ~10 seconds** - but deployments can take 16-36 seconds
+- **Respond immediately with 202 Accepted** - before starting deployment
+- **Run deployment asynchronously** - don't wait for deployment to complete before responding
+- Pattern: `res.status(202).json({ message: 'Deployment accepted' });` then `exec()` deployment script
+- This prevents GitHub timeouts while deployments still complete successfully
+
 ### Common Issues and Solutions
 - **"Cannot find module 'express'"**: Add named volume for node_modules (see Volume Mounts above)
 - **"WEBHOOK_SECRET not set"**: Recreate container after adding to .env, or hardcode in docker-compose.yml

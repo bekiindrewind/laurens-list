@@ -265,9 +265,12 @@ The system includes automated deployment for the **dev environment** via GitHub 
 2. GitHub sends webhook POST to `https://webhook.laurenslist.org`
 3. Traefik routes request to `webhook-listener` container
 4. Webhook listener validates signature and branch
-5. If valid, executes `deploy-dev-webhook.sh`
-6. Script pulls code, rebuilds, and restarts dev container
-7. Changes are live on `dev.laurenslist.org`
+5. **Immediate Response**: Listener responds with `202 Accepted` immediately (prevents GitHub timeout)
+6. **Async Deployment**: If valid, executes `deploy-dev-webhook.sh` asynchronously in background
+7. Deployment script pulls code, rebuilds, and restarts dev container (takes 16-36 seconds)
+8. Changes are live on `dev.laurenslist.org`
+
+**Timeout Prevention**: GitHub times out after ~10 seconds, but deployment takes 16-36 seconds. The webhook responds immediately with `202 Accepted` and runs deployment asynchronously to prevent timeouts while ensuring deployments complete successfully.
 
 **Setup Time**:
 - Initial setup: ~1-2 hours (includes troubleshooting)

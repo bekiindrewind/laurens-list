@@ -110,8 +110,10 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener
 
 Check logs:
 ```bash
-docker logs root-webhook-listener-1 -f
+docker logs laurens-list-webhook-listener-1 -f
 ```
+
+**Note**: Container name format is `laurens-list-webhook-listener-1` (project name prefix), not `root-webhook-listener-1`.
 
 You should see:
 ```
@@ -163,10 +165,11 @@ curl https://webhook.laurenslist.org/health
 3. Check GitHub webhook status:
    - Go to Settings → Webhooks → Your webhook
    - Click "Recent Deliveries"
-   - Latest delivery should show "200 OK" (green)
+   - Latest delivery should show "202 Accepted" (green) - this means webhook was accepted and deployment is running
+   - **Note**: If you see "200 OK" or "202 Accepted", the webhook is working correctly
 4. Check webhook listener logs:
    ```bash
-   docker logs root-webhook-listener-1 -f
+   docker logs laurens-list-webhook-listener-1 -f
    ```
    You should see:
    ```
@@ -376,7 +379,7 @@ docker build -f /app/Dockerfile -t laurens-list-laurenslist-dev:latest /app
 
 **Debug**:
 ```bash
-docker logs root-webhook-listener-1 -f
+docker logs laurens-list-webhook-listener-1 -f
 # Watch for specific error messages
 ```
 
@@ -440,11 +443,16 @@ docker compose up -d webhook-listener
 3. **Traefik Routing**: Traefik receives request, routes to `webhook-listener` container (port 3000)
 4. **Signature Verification**: Webhook listener verifies GitHub signature using `WEBHOOK_SECRET`
 5. **Branch Check**: Listener checks if branch is `dev` (rejects `main` and others)
-6. **Deployment Script**: Executes `deploy-dev-webhook.sh` which:
+6. **Immediate Response**: Webhook listener responds immediately with `202 Accepted` to prevent GitHub timeouts
+   - GitHub times out after ~10 seconds, but deployment takes 16-36 seconds
+   - Responding immediately prevents timeout while deployment continues
+7. **Async Deployment**: Deployment script runs asynchronously in the background:
    - Pulls latest code from GitHub
    - Rebuilds Docker image
    - Restarts `laurenslist-dev` container
-7. **Done**: Dev site is updated automatically
+8. **Done**: Dev site is updated automatically
+
+**Key Design**: The webhook responds immediately (202 Accepted) and runs deployment asynchronously to prevent GitHub timeouts while ensuring deployments complete successfully.
 
 ### Key Files
 
