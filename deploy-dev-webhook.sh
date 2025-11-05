@@ -24,8 +24,9 @@ git pull origin dev
 
 echo "🛑 Stopping and removing dev container..."
 # Stop and remove the container to avoid build context validation issues
-docker compose -f /app/docker-compose.yml stop laurenslist-dev || true
-docker compose -f /app/docker-compose.yml rm -f laurenslist-dev || true
+# Set project name explicitly to match the image name (laurens-list)
+docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist-dev || true
+docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist-dev || true
 
 echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
@@ -42,7 +43,8 @@ docker build \
 echo "▶️  Starting dev container..."
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml up -d --no-build --force-recreate laurenslist-dev
+# Set project name explicitly to match the image name (laurens-list)
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate laurenslist-dev
 
 echo "⏳ Waiting for container to start..."
 sleep 5
