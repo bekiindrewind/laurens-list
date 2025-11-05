@@ -124,9 +124,11 @@ services:
     volumes:
       - /root/laurens-list:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - webhook_node_modules:/app/node_modules
     command: ["node", "webhook-listener.js"]
 
 volumes:
   traefik_data:
   n8n_data:
+  webhook_node_modules:
 
