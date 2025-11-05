@@ -200,7 +200,7 @@ app.post('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Webhook listener running on port ${PORT}`);
     console.log(`📡 Waiting for GitHub webhooks...`);
-    console.log(`🌐 Webhook endpoint: https://dev.laurenslist.org/webhook`);
+    console.log(`🌐 Webhook endpoint: https://webhook.laurenslist.org`);
     console.log(`🔒 Production (main) branch is protected - manual deployment only`);
 });
 
