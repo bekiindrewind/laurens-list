@@ -1,0 +1,53 @@
+#!/bin/bash
+# Deployment script for production branch (triggered by webhook)
+# This script runs in the webhook container but operates on mounted volumes
+
+set -e  # Exit on error
+
+echo "🚀 Starting production deployment via webhook..."
+echo "📅 $(date)"
+
+# Navigate to project directory (mounted volume)
+cd /app
+
+echo "📥 Fetching latest changes from GitHub..."
+git fetch origin
+
+echo "🔄 Switching to main branch..."
+git checkout main
+
+echo "🔄 Stashing any local changes..."
+git stash || true
+
+echo "⬇️  Pulling latest changes..."
+git pull origin main
+
+echo "🛑 Stopping production container..."
+# Use docker compose from host system via docker socket
+docker compose -f /app/docker-compose.yml stop laurenslist || true
+
+echo "🔨 Rebuilding production container (no cache)..."
+# Use docker build directly via socket to avoid path resolution issues
+# Build context is /app (mounted volume) which maps to /root/laurens-list on host
+# Tag matches the image name in docker-compose.yml
+docker build \
+  --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
+  --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
+  --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
+  -f /app/Dockerfile \
+  -t laurens-list-laurenslist:latest \
+  /app
+
+echo "▶️  Starting production container..."
+docker compose -f /app/docker-compose.yml up -d laurenslist
+
+echo "⏳ Waiting for container to start..."
+sleep 5
+
+echo "📋 Checking container logs..."
+docker logs root-laurenslist-1 --tail 20 || echo "⚠️  Container not found yet"
+
+echo "✅ Production deployment complete!"
+echo "🌐 Live at: https://laurenslist.org"
+echo "📅 Completed at: $(date)"
+

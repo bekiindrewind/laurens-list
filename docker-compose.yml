@@ -138,10 +138,38 @@ services:
       - webhook_node_modules:/app/node_modules
     command: ["node", "webhook-listener.js"]
 
+  webhook-listener-prod:
+    build:
+      context: /root/laurens-list
+      dockerfile: /root/laurens-list/Dockerfile.webhook.prod
+    restart: always
+    env_file:
+      - /root/.env
+    networks:
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webhook-prod.rule=Host(`webhook-prod.laurenslist.org`)"
+      - "traefik.http.routers.webhook-prod.tls=true"
+      - "traefik.http.routers.webhook-prod.entrypoints=web,websecure"
+      - "traefik.http.routers.webhook-prod.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.webhook-prod.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.webhook-prod-headers.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.webhook-prod-headers.headers.STSSeconds=31536000"
+      - "traefik.http.routers.webhook-prod.middlewares=webhook-prod-headers@docker"
+    environment:
+      - WEBHOOK_SECRET_PROD=${WEBHOOK_SECRET_PROD:-your_production_webhook_secret_here}
+    volumes:
+      - /root/laurens-list:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - webhook_prod_node_modules:/app/node_modules
+    command: ["node", "webhook-listener-prod.js"]
+
 volumes:
   traefik_data:
   n8n_data:
   webhook_node_modules:
+  webhook_prod_node_modules:
 
 networks:
   default:
