@@ -53,7 +53,7 @@ You should see: `🚀 Webhook listener running on port 3000`
 1. Go to your GitHub repository: `https://github.com/bekiindrewind/laurens-list`
 2. Click **Settings** → **Webhooks** → **Add webhook**
 3. Configure:
-   - **Payload URL**: `https://webhook.laurenslist.org/webhook`
+   - **Payload URL**: `https://dev.laurenslist.org/webhook`
    - **Content type**: `application/json`
    - **Secret**: Paste your webhook secret (from Step 1)
    - **Which events**: Select "Just the push event"

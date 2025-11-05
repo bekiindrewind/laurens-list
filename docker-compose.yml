@@ -125,6 +125,7 @@ services:
       - "traefik.http.routers.webhook.tls=true"
       - "traefik.http.routers.webhook.entrypoints=web,websecure"
       - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.webhook.tls.domains[0].main=dev.laurenslist.org"
       - "traefik.http.services.webhook.loadbalancer.server.port=3000"
       - "traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true"
       - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
