@@ -62,6 +62,14 @@ When setting up automated deployment via GitHub webhooks or similar:
 - Use explicit paths: `docker build -f /app/Dockerfile -t image-name:tag /app`
 - Use explicit compose file: `docker compose -f /app/docker-compose.yml stop service`
 
+### Docker Compose Image Names
+- **Always specify explicit `image:` field in `docker-compose.yml` for services that are deployed via webhooks**
+- Docker Compose infers project name from directory name, which causes issues when running from inside containers
+- Example: `image: laurens-list-laurenslist:latest` ensures correct image name regardless of project name inference
+- **Use `-p project-name` flag** in all `docker compose` commands to explicitly set project name
+- **Use `--no-build --force-recreate` flags** when starting containers with pre-built images to avoid build context validation
+- **Remove containers before recreating** to avoid validation issues: `docker compose -f /app/docker-compose.yml -p project-name rm -f service`
+
 ### Git Operations in Deployment Scripts
 - **Always stash local changes before pulling**: `git stash || true` (the `|| true` prevents script failure if nothing to stash)
 - This prevents "local changes would be overwritten by merge" errors
@@ -97,7 +105,8 @@ When setting up automated deployment via GitHub webhooks or similar:
 - **"git: command not found"**: Install git in Dockerfile (see Container Dependencies above)
 - **"docker: command not found"**: Install docker-ce-cli in Dockerfile (see Container Dependencies above)
 - **"no configuration file provided"**: Use explicit file path: `docker compose -f /app/docker-compose.yml ...`
-- **"unable to prepare context: path not found"**: Use `docker build` directly instead of `docker compose build`
+- **"unable to prepare context: path not found"**: Use `docker build` directly instead of `docker compose build`, and use `--no-build --force-recreate` flags
+- **"No such image: app-service:latest"**: Add explicit `image:` field to service in `docker-compose.yml` and use `-p project-name` flag in docker compose commands
 - **Webhook timeout**: Check Docker network configuration (see Docker Network Configuration above)
 - **Traefik routing wrong domain**: Set explicit Host rule in labels (see Traefik Configuration above)
 

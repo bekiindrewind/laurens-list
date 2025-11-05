@@ -2,7 +2,7 @@
 
 This guide sets up automated deployment for the **production** environment (`main` branch) using GitHub webhooks. This setup applies all lessons learned from the dev webhook implementation.
 
-**✅ Status**: Production webhook is fully operational and tested.
+**✅ Status**: Production webhook is fully operational and tested. Successfully deployed and verified on November 5, 2025.
 
 ## Prerequisites
 
@@ -261,6 +261,33 @@ docker logs laurens-list-webhook-listener-prod-1 -f
 ```
 
 Container names follow format: `{project-name}-{service-name}-{number}`
+
+### Issue: "No such image: app-laurenslist:latest" or "unable to prepare context: path /root/laurens-list not found"
+
+**Symptom**: Deployment fails with image not found or build context errors
+
+**Cause**: Docker Compose is inferring project name from directory (`/app` → `app`) or trying to validate build context that doesn't exist inside container
+
+**Solution**:
+1. **Ensure `docker-compose.yml` has explicit `image:` field** for the service:
+   ```yaml
+   laurenslist:
+     image: laurens-list-laurenslist:latest
+     build:
+       context: /root/laurens-list
+       ...
+   ```
+2. **Use `-p laurens-list` flag** in all `docker compose` commands in deployment script
+3. **Use `--no-build --force-recreate` flags** when starting container:
+   ```bash
+   docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate laurenslist
+   ```
+4. **Remove container before recreating** to avoid validation issues:
+   ```bash
+   docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist
+   ```
+
+**Note**: The deployment script already includes these fixes. If you encounter this error, ensure the latest version of `deploy-prod-webhook.sh` is on the server.
 
 ## Quick Reference
 

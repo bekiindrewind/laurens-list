@@ -313,10 +313,12 @@ The system includes automated deployment for both **dev** and **production** env
 4. Webhook listener validates signature and branch
 5. **Immediate Response**: Listener responds with `202 Accepted` immediately (prevents GitHub timeout)
 6. **Async Deployment**: If valid, executes `deploy-prod-webhook.sh` asynchronously in background
-7. Deployment script pulls code, rebuilds, and restarts production container (takes 16-36 seconds)
+7. Deployment script pulls code, rebuilds, and restarts production container (takes ~6-10 seconds)
 8. Changes are live on `laurenslist.org`
 
-**Timeout Prevention**: GitHub times out after ~10 seconds, but deployment takes 16-36 seconds. The webhook responds immediately with `202 Accepted` and runs deployment asynchronously to prevent timeouts while ensuring deployments complete successfully.
+**Timeout Prevention**: GitHub times out after ~10 seconds, but deployment takes 6-10 seconds. The webhook responds immediately with `202 Accepted` and runs deployment asynchronously to prevent timeouts while ensuring deployments complete successfully.
+
+**Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime.
 
 **Setup Time**:
 - Initial setup: ~1-2 hours (includes troubleshooting)
