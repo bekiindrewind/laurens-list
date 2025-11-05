@@ -2,6 +2,8 @@
 
 This guide sets up automated deployment for the **production** environment (`main` branch) using GitHub webhooks. This setup applies all lessons learned from the dev webhook implementation.
 
+**✅ Status**: Production webhook is fully operational and tested.
+
 ## Prerequisites
 
 - ✅ Dev webhook already working (optional but recommended for testing pattern)
@@ -207,23 +209,25 @@ curl https://webhook-prod.laurenslist.org/health
 
 ### Issue: "WEBHOOK_SECRET_PROD environment variable not set"
 
-**Symptom**: Production webhook listener exits with error
+**Symptom**: Production webhook listener exits with error or returns `401 Unauthorized` from GitHub
 
 **Solution**:
 1. Check `.env` file has `WEBHOOK_SECRET_PROD`:
    ```bash
    cat /root/.env | grep WEBHOOK_SECRET_PROD
    ```
-2. Remove duplicates:
+2. Remove duplicates (if any):
    ```bash
    sed -i '/^WEBHOOK_SECRET_PROD=/d' /root/.env
    echo "WEBHOOK_SECRET_PROD=your_secret_here" >> /root/.env
    ```
-3. Recreate container:
+3. **Recreate container** (not just restart - ensures env_file is re-evaluated):
    ```bash
    docker compose rm -f webhook-listener-prod
    docker compose up -d webhook-listener-prod
    ```
+
+**Note**: The `env_file: - /root/.env` mechanism in `docker-compose.yml` loads secrets into the container. Ensure the container is recreated (not just restarted) after modifying `.env` to pick up changes. Secrets should **never** be hardcoded in `docker-compose.yml` for security.
 
 ### Issue: GitHub webhook delivery times out
 

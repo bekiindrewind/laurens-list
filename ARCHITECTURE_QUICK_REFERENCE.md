@@ -51,7 +51,7 @@ A condensed guide for understanding and reusing this architecture.
 - **Docker**: Containerization
 - **Traefik**: Reverse proxy, SSL termination
 - **Docker Compose**: Multi-container orchestration
-- **Webhook Listener**: Automated deployment service (dev only)
+- **Webhook Listeners**: Automated deployment services (dev and production)
 
 ## Deployment Architecture
 
@@ -62,15 +62,18 @@ GitHub → Webhook POST → Webhook Listener (202 Accepted) → Async Deployment
 
 **Note**: Webhook responds immediately with `202 Accepted` to prevent GitHub timeouts, then runs deployment asynchronously (takes 16-36 seconds).
 
-### Manual Deployment (Production)
+### Automated Deployment (Production)
 ```
-GitHub → SSH → Git Pull → Docker Build → Container → Traefik → Users
+GitHub → Webhook POST → Production Webhook Listener (202 Accepted) → Async Deployment → Git Pull → Docker Build → Container → Traefik → Users
 ```
 
+**Note**: Production webhook uses separate secret (`WEBHOOK_SECRET_PROD`) and separate endpoint (`webhook-prod.laurenslist.org`).
+
 **Environments**:
-- **Production**: `main` branch → `laurenslist` container → `laurenslist.org` (manual deployment)
+- **Production**: `main` branch → `laurenslist` container → `laurenslist.org` (automated via webhook)
 - **Development**: `dev` branch → `laurenslist-dev` container → `dev.laurenslist.org` (automated via webhook)
-- **Webhook Listener**: `webhook-listener` container → `webhook.laurenslist.org` (receives GitHub webhooks)
+- **Dev Webhook Listener**: `webhook-listener` container → `webhook.laurenslist.org` (receives dev branch webhooks)
+- **Production Webhook Listener**: `webhook-listener-prod` container → `webhook-prod.laurenslist.org` (receives main branch webhooks)
 
 ## Data Flow
 
@@ -133,13 +136,17 @@ To adapt this for another project:
   - Update `.env` file on server
 
 - [ ] **Set Up Automated Deployment (Optional)**
-  - Create `webhook-listener.js` (or copy from template)
+  - Create `webhook-listener.js` (or copy from template) - for dev
+  - Create `webhook-listener-prod.js` (or copy from template) - for production
   - Create `deploy-dev-webhook.sh` (or copy from template)
-  - Create `Dockerfile.webhook` (or copy from template)
-  - Update `docker-compose.yml` with webhook service
-  - Configure GitHub webhook
-  - Set up DNS A record for webhook subdomain
-  - See `WEBHOOK_SETUP_INSTRUCTIONS.md` for details
+  - Create `deploy-prod-webhook.sh` (or copy from template)
+  - Create `Dockerfile.webhook` (or copy from template) - for dev
+  - Create `Dockerfile.webhook.prod` (or copy from template) - for production
+  - Update `docker-compose.yml` with webhook services
+  - Configure GitHub webhooks (separate for dev and production)
+  - Set up DNS A records for webhook subdomains
+  - See `WEBHOOK_SETUP_INSTRUCTIONS.md` for dev setup
+  - See `PRODUCTION_WEBHOOK_SETUP.md` for production setup
 
 ## Key Files
 
@@ -152,8 +159,11 @@ To adapt this for another project:
 | `Dockerfile` | Container definition |
 | `Dockerfile.webhook` | Webhook listener container |
 | `docker-compose.yml` | Multi-container config |
-| `webhook-listener.js` | Webhook receiver service |
-| `deploy-dev-webhook.sh` | Automated deployment script |
+| `webhook-listener.js` | Dev webhook receiver service |
+| `webhook-listener-prod.js` | Production webhook receiver service |
+| `deploy-dev-webhook.sh` | Dev automated deployment script |
+| `deploy-prod-webhook.sh` | Production automated deployment script |
+| `Dockerfile.webhook.prod` | Production webhook container |
 | `package.json` | Node.js dependencies |
 
 ## Security Features
@@ -192,7 +202,17 @@ docker compose build laurenslist-dev --no-cache
 docker compose up -d laurenslist-dev
 ```
 
-### Deploy to Production
+### Deploy to Production (Automated)
+```bash
+# Just push to main branch - webhook handles deployment automatically
+git checkout main
+git add .
+git commit -m "Your changes"
+git push origin main
+# Webhook automatically deploys to laurenslist.org
+```
+
+### Deploy to Production (Manual - if webhook fails)
 ```bash
 cd /root/laurens-list
 git checkout main && git pull origin main

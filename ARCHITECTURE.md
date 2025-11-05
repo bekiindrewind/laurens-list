@@ -223,9 +223,9 @@ backend/
 
 ### Automated Deployment System
 
-The system includes automated deployment for the **dev environment** via GitHub webhooks. Production remains manual for safety.
+The system includes automated deployment for both **dev** and **production** environments via GitHub webhooks. Separate webhook listeners handle each environment for security and isolation.
 
-#### Webhook Listener Service
+#### Dev Webhook Listener Service
 
 **Purpose**: Receives GitHub webhooks and automatically deploys `dev` branch changes.
 
@@ -251,7 +251,7 @@ The system includes automated deployment for the **dev environment** via GitHub 
 
 **Network Configuration**:
 - All services must be on the same Docker network (`root_default`)
-- Traefik routes `https://webhook.laurenslist.org` to webhook listener
+- Traefik routes `https://webhook.laurenslist.org` to dev webhook listener
 - DNS A record: `webhook.laurenslist.org` → server IP
 
 **Security Features**:
@@ -270,6 +270,52 @@ The system includes automated deployment for the **dev environment** via GitHub 
 7. Deployment script pulls code, rebuilds, and restarts dev container (takes 16-36 seconds)
 8. Changes are live on `dev.laurenslist.org`
 
+#### Production Webhook Listener Service
+
+**Purpose**: Receives GitHub webhooks and automatically deploys `main` branch changes to production.
+
+**Components**:
+- **`webhook-listener-prod.js`**: Express.js server that:
+  - Listens on port 3000 (separate container)
+  - Receives POST requests from GitHub
+  - Validates GitHub webhook signatures using `WEBHOOK_SECRET_PROD` (separate secret)
+  - Only processes `push` events to `main` branch (rejects `dev` and others)
+  - Executes `deploy-prod-webhook.sh` on valid webhooks
+
+- **`deploy-prod-webhook.sh`**: Bash script that:
+  - Pulls latest code from GitHub (`main` branch)
+  - Stashes local changes (prevents merge conflicts)
+  - Rebuilds Docker image using `docker build`
+  - Restarts `laurenslist` container (production)
+
+- **`Dockerfile.webhook.prod`**: Container image that:
+  - Includes Node.js 18
+  - Installs git, bash, and Docker CLI tools
+  - Mounts Docker socket for container control
+  - Mounts git repository for code access
+
+**Network Configuration**:
+- All services must be on the same Docker network (`root_default`)
+- Traefik routes `https://webhook-prod.laurenslist.org` to production webhook listener
+- DNS A record: `webhook-prod.laurenslist.org` → server IP
+
+**Security Features**:
+- GitHub webhook signature verification (HMAC-SHA256)
+- **Separate webhook secret** (`WEBHOOK_SECRET_PROD`) for extra security
+- Branch filtering (only `main` branch deploys automatically)
+- HTTPS enforced via Traefik
+- Dev branch explicitly rejected
+
+**Deployment Flow**:
+1. Developer pushes to `main` branch on GitHub
+2. GitHub sends webhook POST to `https://webhook-prod.laurenslist.org`
+3. Traefik routes request to `webhook-listener-prod` container
+4. Webhook listener validates signature and branch
+5. **Immediate Response**: Listener responds with `202 Accepted` immediately (prevents GitHub timeout)
+6. **Async Deployment**: If valid, executes `deploy-prod-webhook.sh` asynchronously in background
+7. Deployment script pulls code, rebuilds, and restarts production container (takes 16-36 seconds)
+8. Changes are live on `laurenslist.org`
+
 **Timeout Prevention**: GitHub times out after ~10 seconds, but deployment takes 16-36 seconds. The webhook responds immediately with `202 Accepted` and runs deployment asynchronously to prevent timeouts while ensuring deployments complete successfully.
 
 **Setup Time**:
@@ -286,7 +332,8 @@ services:
   traefik:          # Reverse proxy, SSL termination
   laurenslist:      # Production app container
   laurenslist-dev:  # Development/staging container
-  webhook-listener: # Automated deployment webhook receiver (dev only)
+  webhook-listener: # Automated deployment webhook receiver (dev branch)
+  webhook-listener-prod: # Automated deployment webhook receiver (main branch)
 ```
 
 **Build Process**:
@@ -611,7 +658,7 @@ laurenslist:
 5. **SPA Routing**: Catch-all to index.html
 6. **Rate Limiting**: Security pattern
 7. **Input Sanitization**: Security pattern
-8. **Automated Deployment**: GitHub webhook integration for dev environment
+8. **Automated Deployment**: GitHub webhook integration for both dev and production environments with separate secrets and endpoints
 
 ---
 

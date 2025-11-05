@@ -185,16 +185,19 @@ services:
     # ...
 ```
 
-**Set Up Automated Deployment (Optional - Dev Only)**:
+**Set Up Automated Deployment (Optional)**:
 
-If you want automated deployment for dev environment, you can copy the webhook setup from this template:
+If you want automated deployment for dev and/or production environments, you can copy the webhook setup from this template:
 
 **Files to Copy**:
-- `webhook-listener.js` - Webhook receiver (modify branch check if needed)
-- `deploy-dev-webhook.sh` - Deployment script (modify container names if needed)
-- `Dockerfile.webhook` - Webhook container image
+- `webhook-listener.js` - Dev webhook receiver (modify branch check if needed)
+- `webhook-listener-prod.js` - Production webhook receiver (modify branch check if needed)
+- `deploy-dev-webhook.sh` - Dev deployment script (modify container names if needed)
+- `deploy-prod-webhook.sh` - Production deployment script (modify container names if needed)
+- `Dockerfile.webhook` - Dev webhook container image
+- `Dockerfile.webhook.prod` - Production webhook container image
 
-**Update `docker-compose.yml`**:
+**Update `docker-compose.yml`** (Dev webhook example):
 ```yaml
 webhook-listener:
   build:
@@ -212,16 +215,38 @@ webhook-listener:
     - "traefik.http.routers.webhook.entrypoints=web,websecure"
     - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
     - "traefik.http.services.webhook.loadbalancer.server.port=3000"
-  environment:
-    - WEBHOOK_SECRET=${WEBHOOK_SECRET:-your_secret_here}
   volumes:
     - /root/your-project:/app
     - /var/run/docker.sock:/var/run/docker.sock:ro
     - webhook_node_modules:/app/node_modules
   command: ["node", "webhook-listener.js"]
 
+# Production webhook (optional - separate secret and endpoint)
+webhook-listener-prod:
+  build:
+    context: /root/your-project
+    dockerfile: /root/your-project/Dockerfile.webhook.prod
+  restart: always
+  env_file:
+    - /root/.env
+  networks:
+    - default
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.webhook-prod.rule=Host(`webhook-prod.yoursite.org`)"
+    - "traefik.http.routers.webhook-prod.tls=true"
+    - "traefik.http.routers.webhook-prod.entrypoints=web,websecure"
+    - "traefik.http.routers.webhook-prod.tls.certresolver=mytlschallenge"
+    - "traefik.http.services.webhook-prod.loadbalancer.server.port=3000"
+  volumes:
+    - /root/your-project:/app
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - webhook_prod_node_modules:/app/node_modules
+  command: ["node", "webhook-listener-prod.js"]
+
 volumes:
   webhook_node_modules:
+  webhook_prod_node_modules:
 
 networks:
   default:
@@ -238,14 +263,23 @@ docker compose -f /app/docker-compose.yml up -d yoursite-dev
 ```
 
 **DNS Setup**:
-- Create DNS A record: `webhook.yoursite.org` → your server IP
+- Dev webhook: Create DNS A record: `webhook.yoursite.org` → your server IP
+- Production webhook: Create DNS A record: `webhook-prod.yoursite.org` → your server IP (if using production webhook)
 
 **GitHub Webhook Configuration**:
-- Payload URL: `https://webhook.yoursite.org`
-- Secret: Generate with `openssl rand -hex 32`
-- Events: "Just the push event"
+- **Dev webhook**:
+  - Payload URL: `https://webhook.yoursite.org`
+  - Secret: Generate with `openssl rand -hex 32` (store in `/root/.env` as `WEBHOOK_SECRET`)
+  - Events: "Just the push event"
+  - Branch: `dev` (or your dev branch name)
+- **Production webhook** (optional):
+  - Payload URL: `https://webhook-prod.yoursite.org`
+  - Secret: Generate with `openssl rand -hex 32` (store in `/root/.env` as `WEBHOOK_SECRET_PROD` - separate from dev)
+  - Events: "Just the push event"
+  - Branch: `main` (or your production branch name)
 
-**See `WEBHOOK_SETUP_INSTRUCTIONS.md` for complete setup guide with troubleshooting.**
+**See `WEBHOOK_SETUP_INSTRUCTIONS.md` for dev webhook setup guide with troubleshooting.**
+**See `PRODUCTION_WEBHOOK_SETUP.md` for production webhook setup guide.**
 
 ### Step 5: Update Environment Variables
 
@@ -332,11 +366,14 @@ Use this checklist when adapting the template:
 - [ ] Set environment variables
 - [ ] Update Traefik labels
 - [ ] Test deployment workflow
-- [ ] Set up automated deployment (optional - webhook for dev)
-  - [ ] Copy webhook files (`webhook-listener.js`, `deploy-dev-webhook.sh`, `Dockerfile.webhook`)
+- [ ] Set up automated deployment (optional - webhook for dev and/or production)
+  - [ ] Copy webhook files:
+    - Dev: `webhook-listener.js`, `deploy-dev-webhook.sh`, `Dockerfile.webhook`
+    - Production: `webhook-listener-prod.js`, `deploy-prod-webhook.sh`, `Dockerfile.webhook.prod` (if using production webhook)
   - [ ] Update webhook configuration for your project
-  - [ ] Configure GitHub webhook
-  - [ ] Set up DNS A record for webhook subdomain
+  - [ ] Configure GitHub webhooks (separate for dev and production if using both)
+  - [ ] Set up DNS A records for webhook subdomains
+  - [ ] Add webhook secrets to `/root/.env` (use separate secrets for dev and production)
 
 ### Documentation
 - [ ] Update README.md
@@ -470,7 +507,8 @@ if (result.status === 'not-recommended') {
 - [Full Architecture Documentation](./ARCHITECTURE.md)
 - [Quick Reference Guide](./ARCHITECTURE_QUICK_REFERENCE.md)
 - [Deployment Guide](./DEV_TO_PROD_DEPLOYMENT.md)
-- [Webhook Setup Instructions](./WEBHOOK_SETUP_INSTRUCTIONS.md)
+- [Webhook Setup Instructions](./WEBHOOK_SETUP_INSTRUCTIONS.md) - Dev webhook setup
+- [Production Webhook Setup Instructions](./PRODUCTION_WEBHOOK_SETUP.md) - Production webhook setup
 
 ---
 
