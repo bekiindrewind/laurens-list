@@ -22,11 +22,12 @@ git stash || true
 echo "⬇️  Pulling latest changes..."
 git pull origin dev
 
-echo "🛑 Stopping dev container..."
-# Use docker compose from host system via docker socket
+echo "🛑 Stopping and removing dev container..."
+# Stop and remove the container to avoid build context validation issues
 docker compose -f /app/docker-compose.yml stop laurenslist-dev || true
+docker compose -f /app/docker-compose.yml rm -f laurenslist-dev || true
 
-echo "🔨 Rebuilding dev container (no cache)..."
+echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
 # Build context is /app (mounted volume) which maps to /root/laurens-list on host
 # Tag matches the image name in docker-compose.yml
@@ -39,8 +40,9 @@ docker build \
   /app
 
 echo "▶️  Starting dev container..."
-# Use --no-build since we already built the image directly with docker build
-docker compose -f /app/docker-compose.yml up -d --no-build laurenslist-dev
+# Use --no-build and --force-recreate to avoid build context validation
+# The container was removed above, so this will create a new one using the existing image
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml up -d --no-build --force-recreate laurenslist-dev
 
 echo "⏳ Waiting for container to start..."
 sleep 5
