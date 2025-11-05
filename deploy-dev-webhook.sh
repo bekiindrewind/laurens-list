@@ -16,6 +16,9 @@ git fetch origin
 echo "🔄 Switching to dev branch..."
 git checkout dev
 
+echo "🔄 Stashing any local changes..."
+git stash || true
+
 echo "⬇️  Pulling latest changes..."
 git pull origin dev
 
