@@ -39,7 +39,8 @@ docker build \
   /app
 
 echo "▶️  Starting dev container..."
-docker compose -f /app/docker-compose.yml up -d laurenslist-dev
+# Use --no-build since we already built the image directly with docker build
+docker compose -f /app/docker-compose.yml up -d --no-build laurenslist-dev
 
 echo "⏳ Waiting for container to start..."
 sleep 5
