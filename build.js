@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔧 Building Lauren\'s List for Netlify...');
+console.log('🔧 Building Lauren\'s List...');
 
 // Read the original script.js
 const scriptPath = path.join(__dirname, 'script.js');

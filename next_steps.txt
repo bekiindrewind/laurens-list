@@ -1,0 +1,15 @@
+security - cleanse inputs
+            confirmm no visible keys
+            run snyk or whatever
+
+fix false positive from H
+
+spin this off into a templated deployment process
+
+
+False positives:
+
+my oxford year movie
+step mom (book?) movie?
+
+false positives for astrology books? worth it?
