@@ -29,3 +29,73 @@ When integrating or fixing API issues:
 - Log API responses to understand actual data structures
 - When responses don't match expectations, check the documentation first
 
+## Webhook/Deployment Automation Setup
+
+When setting up automated deployment via GitHub webhooks or similar:
+
+### Docker Network Configuration
+- **ALL services must be on the same Docker network** for Traefik to route properly
+- Use `networks: - default` with `external: true` and `name: root_default` (or appropriate network name)
+- If webhook times out, check that webhook listener and Traefik are on the same network
+- Verify: `docker network inspect root_default` shows all services
+
+### Volume Mounts
+- **When mounting source code into a container, use a named volume for `node_modules`** to preserve dependencies
+- Example: `webhook_node_modules:/app/node_modules` alongside `/root/project:/app`
+- Volume mounts overwrite container contents - installed dependencies will be lost without named volume
+- This applies to any Node.js service that mounts source code
+
+### Environment Variables
+- Use `env_file: - /path/to/.env` in docker-compose.yml to load from file
+- **Recreate containers (not just restart) after modifying .env file**: `docker compose rm -f service && docker compose up -d service`
+- Fallback: Hardcode critical env vars in `environment:` section: `WEBHOOK_SECRET=${WEBHOOK_SECRET:-fallback_value}`
+- Remove duplicate entries in .env file before adding new ones: `sed -i '/^VAR=/d' /path/.env`
+
+### Container Dependencies for Deployment Scripts
+- **Deployment scripts running inside containers need CLI tools**: `git` and `docker-ce-cli` (and `docker-compose-plugin` if using compose)
+- Install these in Dockerfile: `RUN apt-get update && apt-get install -y bash git docker-ce-cli docker-compose-plugin`
+- Mount Docker socket: `/var/run/docker.sock:/var/run/docker.sock:ro` to allow container to control host Docker
+
+### Docker Build Context Paths
+- **When running `docker compose build` from inside a container, use `docker build` directly instead**
+- Path resolution issues occur when running compose from inside container - build context paths are relative to host
+- Use explicit paths: `docker build -f /app/Dockerfile -t image-name:tag /app`
+- Use explicit compose file: `docker compose -f /app/docker-compose.yml stop service`
+
+### Git Operations in Deployment Scripts
+- **Always stash local changes before pulling**: `git stash || true` (the `|| true` prevents script failure if nothing to stash)
+- This prevents "local changes would be overwritten by merge" errors
+- Use `git fetch origin` then `git checkout branch` then `git pull origin branch`
+
+### Traefik Configuration
+- **Explicitly set Host rules in Traefik labels**: `traefik.http.routers.service.rule=Host(\`domain.com\`)`
+- Don't rely on Traefik inferring domain from other labels
+- Ensure all Traefik labels are correct before starting service
+- Verify Traefik discovered service: `docker logs traefik-container | grep service-name`
+
+### DNS Setup
+- **Create DNS A record for webhook subdomain** pointing to same IP as main domain (Traefik routes by Host header)
+- Wait for DNS propagation (5-10 minutes typically)
+- Verify: `nslookup webhook.domain.com` before testing webhook
+- Dev and prod can share same IP - Traefik handles routing
+
+### Webhook Signature Verification
+- **Use raw request body for signature verification** - store it in Express middleware: `express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })`
+- Verify signature before processing: `crypto.createHmac('sha256', secret).update(rawBody).digest('hex')`
+- Check for `req.rawBody` existence before using it (prevents 500 errors)
+
+### Common Issues and Solutions
+- **"Cannot find module 'express'"**: Add named volume for node_modules (see Volume Mounts above)
+- **"WEBHOOK_SECRET not set"**: Recreate container after adding to .env, or hardcode in docker-compose.yml
+- **"git: command not found"**: Install git in Dockerfile (see Container Dependencies above)
+- **"docker: command not found"**: Install docker-ce-cli in Dockerfile (see Container Dependencies above)
+- **"no configuration file provided"**: Use explicit file path: `docker compose -f /app/docker-compose.yml ...`
+- **"unable to prepare context: path not found"**: Use `docker build` directly instead of `docker compose build`
+- **Webhook timeout**: Check Docker network configuration (see Docker Network Configuration above)
+- **Traefik routing wrong domain**: Set explicit Host rule in labels (see Traefik Configuration above)
+
+### Reference Documentation
+- See `WEBHOOK_SETUP_INSTRUCTIONS.md` for complete setup guide with detailed troubleshooting
+- See `webhook-listener.js` and `deploy-dev-webhook.sh` for working implementation examples
+- Initial setup takes 1-2 hours (with troubleshooting), subsequent setups take 30-45 minutes
+

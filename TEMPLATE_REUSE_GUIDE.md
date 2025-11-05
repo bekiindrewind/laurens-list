@@ -185,6 +185,68 @@ services:
     # ...
 ```
 
+**Set Up Automated Deployment (Optional - Dev Only)**:
+
+If you want automated deployment for dev environment, you can copy the webhook setup from this template:
+
+**Files to Copy**:
+- `webhook-listener.js` - Webhook receiver (modify branch check if needed)
+- `deploy-dev-webhook.sh` - Deployment script (modify container names if needed)
+- `Dockerfile.webhook` - Webhook container image
+
+**Update `docker-compose.yml`**:
+```yaml
+webhook-listener:
+  build:
+    context: /root/your-project
+    dockerfile: /root/your-project/Dockerfile.webhook
+  restart: always
+  env_file:
+    - /root/.env
+  networks:
+    - default
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.webhook.rule=Host(`webhook.yoursite.org`)"
+    - "traefik.http.routers.webhook.tls=true"
+    - "traefik.http.routers.webhook.entrypoints=web,websecure"
+    - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
+    - "traefik.http.services.webhook.loadbalancer.server.port=3000"
+  environment:
+    - WEBHOOK_SECRET=${WEBHOOK_SECRET:-your_secret_here}
+  volumes:
+    - /root/your-project:/app
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - webhook_node_modules:/app/node_modules
+  command: ["node", "webhook-listener.js"]
+
+volumes:
+  webhook_node_modules:
+
+networks:
+  default:
+    external: true
+    name: root_default  # Or your network name
+```
+
+**Update `deploy-dev-webhook.sh`**:
+```bash
+# Change container name if you changed service names
+docker compose -f /app/docker-compose.yml stop yoursite-dev || true
+docker build -f /app/Dockerfile -t your-project-yoursite-dev:latest /app
+docker compose -f /app/docker-compose.yml up -d yoursite-dev
+```
+
+**DNS Setup**:
+- Create DNS A record: `webhook.yoursite.org` → your server IP
+
+**GitHub Webhook Configuration**:
+- Payload URL: `https://webhook.yoursite.org`
+- Secret: Generate with `openssl rand -hex 32`
+- Events: "Just the push event"
+
+**See `WEBHOOK_SETUP_INSTRUCTIONS.md` for complete setup guide with troubleshooting.**
+
 ### Step 5: Update Environment Variables
 
 **Create `.env` file on server**:
@@ -270,6 +332,11 @@ Use this checklist when adapting the template:
 - [ ] Set environment variables
 - [ ] Update Traefik labels
 - [ ] Test deployment workflow
+- [ ] Set up automated deployment (optional - webhook for dev)
+  - [ ] Copy webhook files (`webhook-listener.js`, `deploy-dev-webhook.sh`, `Dockerfile.webhook`)
+  - [ ] Update webhook configuration for your project
+  - [ ] Configure GitHub webhook
+  - [ ] Set up DNS A record for webhook subdomain
 
 ### Documentation
 - [ ] Update README.md
@@ -403,6 +470,7 @@ if (result.status === 'not-recommended') {
 - [Full Architecture Documentation](./ARCHITECTURE.md)
 - [Quick Reference Guide](./ARCHITECTURE_QUICK_REFERENCE.md)
 - [Deployment Guide](./DEV_TO_PROD_DEPLOYMENT.md)
+- [Webhook Setup Instructions](./WEBHOOK_SETUP_INSTRUCTIONS.md)
 
 ---
 

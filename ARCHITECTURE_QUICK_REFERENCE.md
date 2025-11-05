@@ -51,16 +51,24 @@ A condensed guide for understanding and reusing this architecture.
 - **Docker**: Containerization
 - **Traefik**: Reverse proxy, SSL termination
 - **Docker Compose**: Multi-container orchestration
+- **Webhook Listener**: Automated deployment service (dev only)
 
 ## Deployment Architecture
 
+### Automated Deployment (Dev)
 ```
-GitHub → VPS → Docker Build → Container → Traefik → Users
+GitHub → Webhook POST → Webhook Listener → Git Pull → Docker Build → Container → Traefik → Users
+```
+
+### Manual Deployment (Production)
+```
+GitHub → SSH → Git Pull → Docker Build → Container → Traefik → Users
 ```
 
 **Environments**:
-- **Production**: `main` branch → `laurenslist` container → `laurenslist.org`
-- **Development**: `dev` branch → `laurenslist-dev` container → `dev.laurenslist.org`
+- **Production**: `main` branch → `laurenslist` container → `laurenslist.org` (manual deployment)
+- **Development**: `dev` branch → `laurenslist-dev` container → `dev.laurenslist.org` (automated via webhook)
+- **Webhook Listener**: `webhook-listener` container → `webhook.laurenslist.org` (receives GitHub webhooks)
 
 ## Data Flow
 
@@ -122,6 +130,15 @@ To adapt this for another project:
   - Update `Dockerfile` if needed
   - Update `.env` file on server
 
+- [ ] **Set Up Automated Deployment (Optional)**
+  - Create `webhook-listener.js` (or copy from template)
+  - Create `deploy-dev-webhook.sh` (or copy from template)
+  - Create `Dockerfile.webhook` (or copy from template)
+  - Update `docker-compose.yml` with webhook service
+  - Configure GitHub webhook
+  - Set up DNS A record for webhook subdomain
+  - See `WEBHOOK_SETUP_INSTRUCTIONS.md` for details
+
 ## Key Files
 
 | File | Purpose |
@@ -131,7 +148,10 @@ To adapt this for another project:
 | `script.js` | Frontend application logic |
 | `server.js` | Backend Express server |
 | `Dockerfile` | Container definition |
+| `Dockerfile.webhook` | Webhook listener container |
 | `docker-compose.yml` | Multi-container config |
+| `webhook-listener.js` | Webhook receiver service |
+| `deploy-dev-webhook.sh` | Automated deployment script |
 | `package.json` | Node.js dependencies |
 
 ## Security Features
@@ -151,7 +171,17 @@ node server.js
 # Visit http://localhost:8080
 ```
 
-### Deploy to Dev
+### Deploy to Dev (Automated)
+```bash
+# Just push to dev branch - webhook handles deployment automatically
+git checkout dev
+git add .
+git commit -m "Your changes"
+git push origin dev
+# Webhook automatically deploys to dev.laurenslist.org
+```
+
+### Deploy to Dev (Manual - if webhook fails)
 ```bash
 cd /root/laurens-list
 git checkout dev && git pull origin dev

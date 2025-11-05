@@ -82,6 +82,7 @@ graph TB
             Traefik[Traefik Container<br/>Port 80/443]
             Prod[Production Container<br/>laurenslist<br/>Port 8080]
             Dev[Dev Container<br/>laurenslist-dev<br/>Port 8080]
+            Webhook[Webhook Listener<br/>Port 3000]
         end
         
         subgraph "Git Repository"
@@ -94,13 +95,17 @@ graph TB
         Users[Users]
     end
     
-    GitHub -->|git pull| Code
+    GitHub -->|git push| GitHub
+    GitHub -->|Webhook POST| Webhook
+    Webhook -->|git pull| Code
     Code -->|Build Context| Prod
     Code -->|Build Context| Dev
     Users -->|https://laurenslist.org| Traefik
     Users -->|https://dev.laurenslist.org| Traefik
+    Users -->|https://webhook.laurenslist.org| Traefik
     Traefik -->|Route| Prod
     Traefik -->|Route| Dev
+    Traefik -->|Route| Webhook
 ```
 
 ### Data Flow Diagram
@@ -216,6 +221,60 @@ backend/
 
 ## Deployment Architecture
 
+### Automated Deployment System
+
+The system includes automated deployment for the **dev environment** via GitHub webhooks. Production remains manual for safety.
+
+#### Webhook Listener Service
+
+**Purpose**: Receives GitHub webhooks and automatically deploys `dev` branch changes.
+
+**Components**:
+- **`webhook-listener.js`**: Express.js server that:
+  - Listens on port 3000
+  - Receives POST requests from GitHub
+  - Validates GitHub webhook signatures using `WEBHOOK_SECRET`
+  - Only processes `push` events to `dev` branch (rejects `main` and others)
+  - Executes `deploy-dev-webhook.sh` on valid webhooks
+
+- **`deploy-dev-webhook.sh`**: Bash script that:
+  - Pulls latest code from GitHub (`dev` branch)
+  - Stashes local changes (prevents merge conflicts)
+  - Rebuilds Docker image using `docker build`
+  - Restarts `laurenslist-dev` container
+
+- **`Dockerfile.webhook`**: Container image that:
+  - Includes Node.js 18
+  - Installs git, bash, and Docker CLI tools
+  - Mounts Docker socket for container control
+  - Mounts git repository for code access
+
+**Network Configuration**:
+- All services must be on the same Docker network (`root_default`)
+- Traefik routes `https://webhook.laurenslist.org` to webhook listener
+- DNS A record: `webhook.laurenslist.org` → server IP
+
+**Security Features**:
+- GitHub webhook signature verification (HMAC-SHA256)
+- Branch filtering (only `dev` branch deploys automatically)
+- HTTPS enforced via Traefik
+- Production branch (`main`) explicitly rejected
+
+**Deployment Flow**:
+1. Developer pushes to `dev` branch on GitHub
+2. GitHub sends webhook POST to `https://webhook.laurenslist.org`
+3. Traefik routes request to `webhook-listener` container
+4. Webhook listener validates signature and branch
+5. If valid, executes `deploy-dev-webhook.sh`
+6. Script pulls code, rebuilds, and restarts dev container
+7. Changes are live on `dev.laurenslist.org`
+
+**Setup Time**:
+- Initial setup: ~1-2 hours (includes troubleshooting)
+- Subsequent setups: ~30-45 minutes (can copy configuration)
+
+**Reference**: See `WEBHOOK_SETUP_INSTRUCTIONS.md` for complete setup guide.
+
 ### Docker Architecture
 
 **Container Structure**:
@@ -224,6 +283,7 @@ services:
   traefik:          # Reverse proxy, SSL termination
   laurenslist:      # Production app container
   laurenslist-dev:  # Development/staging container
+  webhook-listener: # Automated deployment webhook receiver (dev only)
 ```
 
 **Build Process**:
@@ -248,26 +308,45 @@ services:
 
 ### Deployment Workflow
 
+#### Automated Deployment (Dev)
+
 ```mermaid
 graph LR
-    Local[Local Changes] -->|git commit| GitHub[GitHub]
+    Local[Local Changes] -->|git commit & push| GitHub[GitHub]
+    GitHub -->|Webhook POST| Webhook[Webhook Listener]
+    Webhook -->|git pull| Code[Git Repo]
+    Code -->|docker build| Container[Container]
+    Container -->|Traefik| Users[Users]
+```
+
+**Dev Deployment (Automated)**:
+- Push to `dev` branch triggers GitHub webhook
+- Webhook listener receives POST request
+- Validates GitHub signature
+- Executes `deploy-dev-webhook.sh`:
+  - Pulls latest code from GitHub
+  - Rebuilds Docker image
+  - Restarts `laurenslist-dev` container
+- Deployment completes automatically
+
+**Components**:
+- `webhook-listener.js` - Express.js server that receives GitHub webhooks
+- `deploy-dev-webhook.sh` - Bash script that performs deployment
+- `Dockerfile.webhook` - Container image with Node.js, git, and Docker CLI
+- GitHub webhook configured to send POST to `https://webhook.laurenslist.org`
+
+#### Manual Deployment (Production)
+
+```mermaid
+graph LR
+    Local[Local Changes] -->|git commit & push| GitHub[GitHub]
     GitHub -->|git pull| VPS[VPS Server]
     VPS -->|docker build| Container[Container]
     Container -->|Traefik| Users[Users]
 ```
 
-**Deployment Commands**:
+**Production Deployment (Manual - SSH)**:
 ```bash
-# Dev deployment
-cd /root/laurens-list
-git checkout dev
-git pull origin dev
-cd /root
-docker compose stop laurenslist-dev
-docker compose build laurenslist-dev --no-cache
-docker compose up -d laurenslist-dev
-
-# Production deployment
 cd /root/laurens-list
 git checkout main
 git pull origin main
@@ -276,6 +355,11 @@ docker compose stop laurenslist
 docker compose build laurenslist --no-cache
 docker compose up -d laurenslist
 ```
+
+**Why Production is Manual**:
+- Safety: Production deployments require explicit approval
+- Stability: Prevents accidental deployments
+- Control: Manual process allows for verification before deployment
 
 ---
 
@@ -524,6 +608,7 @@ laurenslist:
 5. **SPA Routing**: Catch-all to index.html
 6. **Rate Limiting**: Security pattern
 7. **Input Sanitization**: Security pattern
+8. **Automated Deployment**: GitHub webhook integration for dev environment
 
 ---
 
@@ -571,11 +656,18 @@ laurens-list/
 ├── server.js               # Backend Express server
 ├── package.json            # Node.js dependencies
 ├── Dockerfile              # Container definition
+├── Dockerfile.webhook      # Webhook listener container
 ├── docker-compose.yml      # Multi-container config
+├── webhook-listener.js     # Webhook receiver service
+├── deploy-dev-webhook.sh   # Automated deployment script
 ├── build.js                # Build script (API key injection)
 ├── .gitignore             # Git ignore rules
+├── .cursorrules            # Cursor IDE rules
 ├── README.md              # User documentation
 ├── ARCHITECTURE.md        # This file
+├── ARCHITECTURE_QUICK_REFERENCE.md  # Quick reference
+├── TEMPLATE_REUSE_GUIDE.md  # Template reuse guide
+├── WEBHOOK_SETUP_INSTRUCTIONS.md  # Webhook setup guide
 ├── DEV_TO_PROD_DEPLOYMENT.md  # Deployment guide
 └── config.example.js       # Config template (not in Git)
 ```

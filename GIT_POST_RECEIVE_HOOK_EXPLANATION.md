@@ -1,5 +1,22 @@
 # Git Post-Receive Hook - Explanation
 
+## ⚠️ Implementation Status
+
+**This document explains the concept.** We actually implemented **Option A (GitHub Webhook)** using a webhook listener service rather than a traditional Git post-receive hook.
+
+**For the actual implementation details**, see:
+- **`WEBHOOK_SETUP_INSTRUCTIONS.md`** - Complete setup guide with troubleshooting
+- **`webhook-listener.js`** - The actual webhook receiver implementation
+- **`deploy-dev-webhook.sh`** - The actual deployment script
+
+**Key differences from traditional Git post-receive hook:**
+- We use a **webhook listener service** (Express.js) instead of a bare Git repository
+- The listener receives GitHub webhooks and validates signatures
+- The deployment script runs `git pull` from the working directory (not a post-receive hook)
+- Everything runs in Docker containers for better isolation
+
+---
+
 ## What is a Git Post-Receive Hook?
 
 A Git hook is a script that runs automatically at certain points in Git's workflow. A **post-receive hook** runs on the server after you push code to a Git repository.
