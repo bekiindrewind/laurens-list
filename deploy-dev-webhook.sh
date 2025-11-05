@@ -24,14 +24,19 @@ git pull origin dev
 
 echo "🛑 Stopping dev container..."
 # Use docker compose from host system via docker socket
-# docker-compose.yml is at /app/docker-compose.yml (mounted from /root/laurens-list)
-# When using Docker socket, docker compose runs on host, so paths should be host paths
-# Verify the build context path exists (it should be /root/laurens-list on host)
 docker compose -f /app/docker-compose.yml stop laurenslist-dev || true
 
 echo "🔨 Rebuilding dev container (no cache)..."
-# Use COMPOSE_FILE and COMPOSE_PROJECT_DIR env vars to help docker compose resolve paths
-COMPOSE_FILE=/app/docker-compose.yml docker compose -f /app/docker-compose.yml build laurenslist-dev --no-cache
+# Use docker build directly via socket to avoid path resolution issues
+# Build context is /root/laurens-list on host, but we use /app (mounted volume) from container
+# The Docker daemon will resolve /root/laurens-list on the host
+docker build \
+  --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
+  --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
+  --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
+  -f /app/Dockerfile \
+  -t laurens-list-laurenslist-dev \
+  /app
 
 echo "▶️  Starting dev container..."
 docker compose -f /app/docker-compose.yml up -d laurenslist-dev
