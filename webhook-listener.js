@@ -122,78 +122,92 @@ app.post('/webhook', (req, res) => {
     }
 });
 
-// Also handle root path (in case Traefik strips the /webhook prefix)
+// Also handle root path (since we're using webhook.laurenslist.org directly)
 app.post('/', (req, res) => {
-    // Same logic as /webhook endpoint
-    const signature = req.headers['x-hub-signature-256'];
-    
-    if (!signature) {
-        console.error('❌ Webhook rejected: No signature header');
-        return res.status(401).json({ error: 'No signature provided' });
-    }
+    try {
+        // Same logic as /webhook endpoint
+        const signature = req.headers['x-hub-signature-256'];
+        
+        if (!signature) {
+            console.error('❌ Webhook rejected: No signature header');
+            return res.status(401).json({ error: 'No signature provided' });
+        }
 
-    const hash = crypto
-        .createHmac('sha256', WEBHOOK_SECRET)
-        .update(req.rawBody)
-        .digest('hex');
-    const expectedSignature = `sha256=${hash}`;
+        // Check if rawBody is available (set by verify middleware)
+        if (!req.rawBody) {
+            console.error('❌ Webhook rejected: No raw body available');
+            return res.status(500).json({ error: 'Server configuration error: raw body not available' });
+        }
 
-    if (signature !== expectedSignature) {
-        console.error('❌ Webhook rejected: Invalid signature');
-        return res.status(401).json({ error: 'Invalid signature' });
-    }
+        const hash = crypto
+            .createHmac('sha256', WEBHOOK_SECRET)
+            .update(req.rawBody)
+            .digest('hex');
+        const expectedSignature = `sha256=${hash}`;
 
-    const branch = req.body.ref?.replace('refs/heads/', '');
-    const event = req.headers['x-github-event'];
+        if (signature !== expectedSignature) {
+            console.error('❌ Webhook rejected: Invalid signature');
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
 
-    console.log(`📦 Webhook received: ${event} on branch ${branch}`);
+        const branch = req.body.ref?.replace('refs/heads/', '');
+        const event = req.headers['x-github-event'];
 
-    if (event !== 'push') {
-        console.log(`ℹ️  Ignoring event: ${event} (only push events are processed)`);
-        return res.status(200).json({ message: 'Event ignored', event });
-    }
+        console.log(`📦 Webhook received: ${event} on branch ${branch}`);
 
-    if (branch !== 'dev') {
-        console.log(`⚠️  Ignoring branch: ${branch} (only dev branch is deployed via webhook)`);
-        console.log(`ℹ️  Production (main) deployments must be done manually for safety`);
-        return res.status(200).json({ 
-            message: 'Branch ignored', 
-            branch,
-            note: 'Only dev branch is deployed via webhook. Production (main) must be deployed manually.'
-        });
-    }
+        if (event !== 'push') {
+            console.log(`ℹ️  Ignoring event: ${event} (only push events are processed)`);
+            return res.status(200).json({ message: 'Event ignored', event });
+        }
 
-    console.log('🚀 Starting dev deployment...');
-    
-    const deployScript = '/app/deploy-dev-webhook.sh';
-    exec(`bash ${deployScript}`, {
-        cwd: '/app',
-        env: { ...process.env, PATH: process.env.PATH }
-    }, (error, stdout, stderr) => {
-        if (error) {
-            console.error('❌ Deployment error:', error);
-            console.error('Error details:', error.message);
-            console.error('STDERR:', stderr);
-            return res.status(500).json({ 
-                error: 'Deployment failed', 
-                details: error.message,
-                stderr: stderr
+        if (branch !== 'dev') {
+            console.log(`⚠️  Ignoring branch: ${branch} (only dev branch is deployed via webhook)`);
+            console.log(`ℹ️  Production (main) deployments must be done manually for safety`);
+            return res.status(200).json({ 
+                message: 'Branch ignored', 
+                branch,
+                note: 'Only dev branch is deployed via webhook. Production (main) must be deployed manually.'
             });
         }
+
+        console.log('🚀 Starting dev deployment...');
         
-        console.log('✅ Deployment completed successfully');
-        console.log('📋 Deployment output:', stdout);
-        
-        if (stderr) {
-            console.warn('⚠️  Deployment warnings:', stderr);
-        }
-        
-        res.status(200).json({ 
-            message: 'Deployment triggered successfully',
-            branch: 'dev',
-            output: stdout
+        const deployScript = '/app/deploy-dev-webhook.sh';
+        exec(`bash ${deployScript}`, {
+            cwd: '/app',
+            env: { ...process.env, PATH: process.env.PATH }
+        }, (error, stdout, stderr) => {
+            if (error) {
+                console.error('❌ Deployment error:', error);
+                console.error('Error details:', error.message);
+                console.error('STDERR:', stderr);
+                return res.status(500).json({ 
+                    error: 'Deployment failed', 
+                    details: error.message,
+                    stderr: stderr
+                });
+            }
+            
+            console.log('✅ Deployment completed successfully');
+            console.log('📋 Deployment output:', stdout);
+            
+            if (stderr) {
+                console.warn('⚠️  Deployment warnings:', stderr);
+            }
+            
+            res.status(200).json({ 
+                message: 'Deployment triggered successfully',
+                branch: 'dev',
+                output: stdout
+            });
         });
-    });
+    } catch (error) {
+        console.error('❌ Webhook processing error:', error);
+        res.status(500).json({ 
+            error: 'Internal server error', 
+            details: error.message 
+        });
+    }
 });
 
 // Start server
