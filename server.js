@@ -155,6 +155,27 @@ app.get('/api/triggerwarning', apiLimiter, async (req, res) => {
 });
 
 // Serve static files from the current directory (CSS, JS, images, favicons, etc.)
+// SECURITY: Block .md files and other documentation from being served
+app.use((req, res, next) => {
+    // Block markdown files and documentation files
+    if (req.path.endsWith('.md') || 
+        req.path.includes('/ARCHITECTURE') || 
+        req.path.includes('/TEMPLATE') ||
+        req.path.includes('/README.md') ||
+        req.path.includes('/DEV_TO_PROD') ||
+        req.path.includes('/SECURITY.md') ||
+        req.path.includes('/TESTING') ||
+        req.path.includes('/HARDCOVER') ||
+        req.path.includes('/INVESTIGATION') ||
+        req.path.includes('/NETLIFY') ||
+        req.path.includes('/TROUBLESHOOT') ||
+        req.path.includes('/VERIFY') ||
+        req.path.includes('/VPS')) {
+        return res.status(404).send('Not Found');
+    }
+    next();
+});
+
 app.use(express.static(__dirname, {
     index: false, // Don't serve index.html automatically, let routes handle it
     setHeaders: (res, path) => {
