@@ -109,6 +109,8 @@ services:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile.webhook
     restart: always
+    env_file:
+      - /root/.env
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webhook.rule=Host(`webhook.laurenslist.org`)"
