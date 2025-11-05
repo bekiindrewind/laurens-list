@@ -111,6 +111,8 @@ services:
     restart: always
     env_file:
       - /root/.env
+    networks:
+      - default
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webhook.rule=Host(`dev.laurenslist.org`) && PathPrefix(`/webhook`)"
@@ -135,4 +137,9 @@ volumes:
   traefik_data:
   n8n_data:
   webhook_node_modules:
+
+networks:
+  default:
+    external: true
+    name: root_default
 
