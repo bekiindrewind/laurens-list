@@ -2,8 +2,8 @@ FROM node:18-slim
 
 WORKDIR /app
 
-# Install bash (needed for deployment script)
-RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
+# Install bash and git (needed for deployment script)
+RUN apt-get update && apt-get install -y bash git && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
