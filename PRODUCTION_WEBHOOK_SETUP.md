@@ -183,7 +183,10 @@ curl https://webhook-prod.laurenslist.org/health
    - Pulls latest code from GitHub (`main` branch)
    - Rebuilds Docker image
    - Restarts `laurenslist` container
+   - Takes ~6-10 seconds to complete
 8. **Done**: Production site updated automatically
+
+**Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime.
 
 ### Key Differences from Dev Webhook
 
