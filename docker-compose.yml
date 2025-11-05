@@ -23,6 +23,8 @@ services:
     volumes:
       - traefik_data:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
@@ -64,6 +66,8 @@ services:
         GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}
         DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}
     restart: always
+    networks:
+      - default
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.laurenslist.rule=Host(`laurenslist.org`) || Host(`www.laurenslist.org`) || Host(`srv1010721.hstgr.cloud`)"
@@ -89,6 +93,8 @@ services:
         GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}
         DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}
     restart: always
+    networks:
+      - default
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.laurenslist-dev.rule=Host(`dev.laurenslist.org`)"
