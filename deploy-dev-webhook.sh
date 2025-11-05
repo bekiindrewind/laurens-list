@@ -21,14 +21,14 @@ git pull origin dev
 
 echo "🛑 Stopping dev container..."
 # Use docker compose from host system via docker socket
-cd /root
-docker compose stop laurenslist-dev || true
+# docker-compose.yml is at /app/docker-compose.yml (mounted from /root/laurens-list)
+docker compose -f /app/docker-compose.yml stop laurenslist-dev || true
 
 echo "🔨 Rebuilding dev container (no cache)..."
-docker compose build laurenslist-dev --no-cache
+docker compose -f /app/docker-compose.yml build laurenslist-dev --no-cache
 
 echo "▶️  Starting dev container..."
-docker compose up -d laurenslist-dev
+docker compose -f /app/docker-compose.yml up -d laurenslist-dev
 
 echo "⏳ Waiting for container to start..."
 sleep 5
