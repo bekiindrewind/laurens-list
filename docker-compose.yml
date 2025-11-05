@@ -130,8 +130,7 @@ services:
       - "traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true"
       - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.webhook.middlewares=webhook-headers@docker"
-    environment:
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    # WEBHOOK_SECRET is loaded from env_file: /root/.env
     volumes:
       - /root/laurens-list:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -157,8 +156,7 @@ services:
       - "traefik.http.middlewares.webhook-prod-headers.headers.SSLRedirect=true"
       - "traefik.http.middlewares.webhook-prod-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.webhook-prod.middlewares=webhook-prod-headers@docker"
-    environment:
-      - WEBHOOK_SECRET_PROD=${WEBHOOK_SECRET_PROD}
+    # WEBHOOK_SECRET_PROD is loaded from env_file: /root/.env
     volumes:
       - /root/laurens-list:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
