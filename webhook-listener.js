@@ -81,8 +81,15 @@ app.post('/webhook', (req, res) => {
         // Deploy dev branch
         console.log('🚀 Starting dev deployment...');
         
-        // Execute deployment script
-        // Note: Script runs in container, but uses mounted volumes and docker socket
+        // Respond immediately to GitHub (202 Accepted) to prevent timeout
+        // GitHub times out after ~10 seconds, but deployment takes 16-36 seconds
+        res.status(202).json({ 
+            message: 'Deployment accepted and started',
+            branch: 'dev',
+            note: 'Deployment is running asynchronously. Check logs for progress.'
+        });
+        
+        // Run deployment asynchronously (don't wait for response)
         const deployScript = '/app/deploy-dev-webhook.sh';
         exec(`bash ${deployScript}`, {
             cwd: '/app',
@@ -92,11 +99,7 @@ app.post('/webhook', (req, res) => {
                 console.error('❌ Deployment error:', error);
                 console.error('Error details:', error.message);
                 console.error('STDERR:', stderr);
-                return res.status(500).json({ 
-                    error: 'Deployment failed', 
-                    details: error.message,
-                    stderr: stderr
-                });
+                return; // Response already sent, just log the error
             }
             
             console.log('✅ Deployment completed successfully');
@@ -105,12 +108,6 @@ app.post('/webhook', (req, res) => {
             if (stderr) {
                 console.warn('⚠️  Deployment warnings:', stderr);
             }
-            
-            res.status(200).json({ 
-                message: 'Deployment triggered successfully',
-                branch: 'dev',
-                output: stdout
-            });
         });
 
     } catch (error) {
