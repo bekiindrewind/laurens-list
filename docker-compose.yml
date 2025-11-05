@@ -104,6 +104,28 @@ services:
       # Also pass as runtime environment variable for server.js
       - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
 
+  webhook-listener:
+    build:
+      context: /root/laurens-list
+      dockerfile: /root/laurens-list/Dockerfile.webhook
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webhook.rule=Host(`webhook.laurenslist.org`)"
+      - "traefik.http.routers.webhook.tls=true"
+      - "traefik.http.routers.webhook.entrypoints=web,websecure"
+      - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.webhook.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
+      - "traefik.http.routers.webhook.middlewares=webhook-headers@docker"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+    volumes:
+      - /root/laurens-list:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["node", "webhook-listener.js"]
+
 volumes:
   traefik_data:
   n8n_data:
