@@ -125,13 +125,10 @@ services:
       - "traefik.http.routers.webhook.tls=true"
       - "traefik.http.routers.webhook.entrypoints=web,websecure"
       - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.webhook.tls.domains[0].main=dev.laurenslist.org"
       - "traefik.http.services.webhook.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
       - "traefik.http.middlewares.webhook-stripprefix.stripprefix.prefixes=/webhook"
-      - "traefik.http.routers.webhook.middlewares=webhook-headers@docker,webhook-stripprefix@docker"
-      - "traefik.http.routers.webhook.priority=10"
+      - "traefik.http.routers.webhook.middlewares=webhook-stripprefix@docker"
+      - "traefik.http.routers.webhook.priority=20"
     environment:
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-41d8ebca1e229ebc474508b94bcf011d6effc69c324035e8dc23cb5a2844b40a}
     volumes:
