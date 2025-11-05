@@ -83,6 +83,7 @@ services:
       - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
 
   laurenslist-dev:
+    image: laurens-list-laurenslist-dev:latest
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
