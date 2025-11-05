@@ -122,7 +122,7 @@ services:
       - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
       - "traefik.http.routers.webhook.middlewares=webhook-headers@docker"
     environment:
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-41d8ebca1e229ebc474508b94bcf011d6effc69c324035e8dc23cb5a2844b40a}
     volumes:
       - /root/laurens-list:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
