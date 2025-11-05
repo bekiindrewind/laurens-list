@@ -22,13 +22,14 @@ git pull origin dev
 echo "🛑 Stopping dev container..."
 # Use docker compose from host system via docker socket
 # docker-compose.yml is at /app/docker-compose.yml (mounted from /root/laurens-list)
-docker compose -f /app/docker-compose.yml stop laurenslist-dev || true
+# Project directory needs to match the host path where docker-compose.yml expects files
+docker compose -f /app/docker-compose.yml --project-directory /root/laurens-list stop laurenslist-dev || true
 
 echo "🔨 Rebuilding dev container (no cache)..."
-docker compose -f /app/docker-compose.yml build laurenslist-dev --no-cache
+docker compose -f /app/docker-compose.yml --project-directory /root/laurens-list build laurenslist-dev --no-cache
 
 echo "▶️  Starting dev container..."
-docker compose -f /app/docker-compose.yml up -d laurenslist-dev
+docker compose -f /app/docker-compose.yml --project-directory /root/laurens-list up -d laurenslist-dev
 
 echo "⏳ Waiting for container to start..."
 sleep 5
