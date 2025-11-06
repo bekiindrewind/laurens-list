@@ -1,0 +1,112 @@
+# Cursor Rules - Reusable Template
+
+## Development Workflow
+
+- **Always prefer local development over remote editing**: When possible, make changes locally, commit to git, and push to servers rather than manually editing remote files via SSH (nano, vim, etc.)
+- This ensures: version control, cleaner git history, easier rollbacks, and ability to review changes before deploying
+- Only edit remote files directly when absolutely necessary (emergency fixes, config files that can't be committed, etc.)
+- When suggesting fixes for remote servers, prioritize solutions that involve: local changes → git commit → git push → pull on server
+
+## API Integration Rules
+
+When integrating or fixing API issues:
+1. **ALWAYS find and read the official API documentation first** before trying various approaches
+2. **Verify the correct endpoint URLs, request methods (GET/POST/PUT/DELETE), and required headers**
+3. **Check the actual response format from the API** rather than assuming it matches our code
+4. **Use the API documentation as the source of truth**, not guesswork or assumptions
+5. **Test with simple examples from the documentation** before implementing complex integrations
+
+## Code Quality
+
+- Keep implementations simple and straightforward
+- Avoid over-engineering solutions
+- When something doesn't work, revert and try a different approach based on documentation
+- Prefer checking documentation over trial-and-error
+
+## Testing
+
+- Always test API integrations with real requests and verify responses match documentation
+- Log API responses to understand actual data structures
+- When responses don't match expectations, check the documentation first
+
+## Webhook/Deployment Automation Setup
+
+When setting up automated deployment via GitHub webhooks or similar:
+
+### Docker Network Configuration
+- **ALL services must be on the same Docker network** for Traefik to route properly
+- Use `networks: - default` with `external: true` and `name: root_default` (or appropriate network name)
+- If webhook times out, check that webhook listener and Traefik are on the same network
+- Verify: `docker network inspect root_default` shows all services
+
+### Volume Mounts
+- **When mounting source code into a container, use a named volume for `node_modules`** to preserve dependencies
+- Example: `webhook_node_modules:/app/node_modules` alongside `/root/project:/app`
+- Volume mounts overwrite container contents - installed dependencies will be lost without named volume
+- This applies to any Node.js service that mounts source code
+
+### Environment Variables
+- Use `env_file: - /path/to/.env` in docker-compose.yml to load from file
+- **Recreate containers (not just restart) after modifying .env file**: `docker compose rm -f service && docker compose up -d service`
+- Fallback: Hardcode critical env vars in `environment:` section: `WEBHOOK_SECRET=${WEBHOOK_SECRET:-fallback_value}`
+- Remove duplicate entries in .env file before adding new ones: `sed -i '/^VAR=/d' /path/.env`
+
+### Container Dependencies for Deployment Scripts
+- **Deployment scripts running inside containers need CLI tools**: `git` and `docker-ce-cli` (and `docker-compose-plugin` if using compose)
+- Install these in Dockerfile: `RUN apt-get update && apt-get install -y bash git docker-ce-cli docker-compose-plugin`
+- Mount Docker socket: `/var/run/docker.sock:/var/run/docker.sock:ro` to allow container to control host Docker
+
+### Docker Build Context Paths
+- **When running `docker compose build` from inside a container, use `docker build` directly instead**
+- Path resolution issues occur when running compose from inside container - build context paths are relative to host
+- Use explicit paths: `docker build -f /app/Dockerfile -t image-name:tag /app`
+- Use explicit compose file: `docker compose -f /app/docker-compose.yml stop service`
+
+### Docker Compose Image Names
+- **Always specify explicit `image:` field in `docker-compose.yml` for services that are deployed via webhooks**
+- Docker Compose infers project name from directory name, which causes issues when running from inside containers
+- Example: `image: project-name-service:latest` ensures correct image name regardless of project name inference
+- **Use `-p project-name` flag** in all `docker compose` commands to explicitly set project name
+- **Use `--no-build --force-recreate` flags** when starting containers with pre-built images to avoid build context validation
+- **Remove containers before recreating** to avoid validation issues: `docker compose -f /app/docker-compose.yml -p project-name rm -f service`
+
+### Git Operations in Deployment Scripts
+- **Always stash local changes before pulling**: `git stash || true` (the `|| true` prevents script failure if nothing to stash)
+- This prevents "local changes would be overwritten by merge" errors
+- Use `git fetch origin` then `git checkout branch` then `git pull origin branch`
+
+### Traefik Configuration
+- **Explicitly set Host rules in Traefik labels**: `traefik.http.routers.service.rule=Host(\`domain.com\`)`
+- Don't rely on Traefik inferring domain from other labels
+- Ensure all Traefik labels are correct before starting service
+- Verify Traefik discovered service: `docker logs traefik-container | grep service-name`
+
+### DNS Setup
+- **Create DNS A record for webhook subdomain** pointing to same IP as main domain (Traefik routes by Host header)
+- Wait for DNS propagation (5-10 minutes typically)
+- Verify: `nslookup webhook.domain.com` before testing webhook
+- Dev and prod can share same IP - Traefik handles routing
+
+### Webhook Signature Verification
+- **Use raw request body for signature verification** - store it in Express middleware: `express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } })`
+- Verify signature before processing: `crypto.createHmac('sha256', secret).update(rawBody).digest('hex')`
+- Check for `req.rawBody` existence before using it (prevents 500 errors)
+
+### Webhook Timeout Prevention
+- **GitHub times out after ~10 seconds** - but deployments can take 6-10 seconds
+- **Respond immediately with 202 Accepted** - before starting deployment
+- **Run deployment asynchronously** - don't wait for deployment to complete before responding
+- Pattern: `res.status(202).json({ message: 'Deployment accepted' });` then `exec()` deployment script
+- This prevents GitHub timeouts while deployments still complete successfully
+
+### Common Issues and Solutions
+- **"Cannot find module 'express'"**: Add named volume for node_modules (see Volume Mounts above)
+- **"WEBHOOK_SECRET not set"**: Recreate container after adding to .env, or hardcode in docker-compose.yml
+- **"git: command not found"**: Install git in Dockerfile (see Container Dependencies above)
+- **"docker: command not found"**: Install docker-ce-cli in Dockerfile (see Container Dependencies above)
+- **"no configuration file provided"**: Use explicit file path: `docker compose -f /app/docker-compose.yml ...`
+- **"unable to prepare context: path not found"**: Use `docker build` directly instead of `docker compose build`, and use `--no-build --force-recreate` flags
+- **"No such image: app-service:latest"**: Add explicit `image:` field to service in `docker-compose.yml` and use `-p project-name` flag in docker compose commands
+- **Webhook timeout**: Check Docker network configuration (see Docker Network Configuration above)
+- **Traefik routing wrong domain**: Set explicit Host rule in labels (see Traefik Configuration above)
+
