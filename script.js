@@ -4,8 +4,9 @@ let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
 // Version identifier for debugging - uses git commit hash
-// This is updated automatically during deployment
-const SCRIPT_VERSION = '1f99546-dev';
+// This should be updated to match the current git commit hash
+// Check with: git rev-parse --short HEAD
+const SCRIPT_VERSION = '639650f-dev';
 console.log(`📦 Script version: ${SCRIPT_VERSION}`);
 console.log(`📦 Deployed: ${new Date().toISOString()}`);
 
