@@ -3397,11 +3397,13 @@ class LaurensList {
                 ? content.categories.map(cat => this.escapeHtml(cat)).join(', ') 
                 : '';
             
+            const confidence = analysis && analysis.confidence ? Math.round(analysis.confidence * 100) : null;
             infoHtml = `
                 <p><strong>Author:</strong> ${author}</p>
                 <p><strong>Published:</strong> ${publishedDate}</p>
                 ${pageCount ? `<p><strong>Pages:</strong> ${pageCount}</p>` : ''}
                 ${categories ? `<p><strong>Categories:</strong> ${categories}</p>` : ''}
+                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
             `;
         } else {
             const releaseDate = this.escapeHtml(content.releaseDate || 'Unknown');
@@ -3411,11 +3413,13 @@ class LaurensList {
                 ? content.genres.map(genre => this.escapeHtml(genre)).join(', ') 
                 : '';
             
+            const confidence = analysis && analysis.confidence ? Math.round(analysis.confidence * 100) : null;
             infoHtml = `
                 <p><strong>Release Date:</strong> ${releaseDate}</p>
                 <p><strong>Rating:</strong> ${rating}</p>
                 ${runtime ? `<p><strong>Runtime:</strong> ${runtime} minutes</p>` : ''}
                 ${genres ? `<p><strong>Genres:</strong> ${genres}</p>` : ''}
+                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
             `;
         }
         resultInfo.innerHTML = infoHtml;
