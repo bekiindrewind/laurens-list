@@ -156,6 +156,7 @@ const CANCER_THEMED_CONTENT = {
         'johnny', 'josée', 'a journey', 'keith', 'killer nun',
         'knockin\' on heaven\'s door', 'language lessons', 'the last song',
         'let me eat your pancreas', 'life is beautiful', 'like a star shining in the night',
+        'my oxford year',
         'a little red flower', 'live is life', 'look both ways', 'love cuts',
         'love is all you need', 'love or something like that', 'ma ma', 'mad women',
         'maidaan', 'maktub', 'manang biring', 'the marching band', 'matching jack',
