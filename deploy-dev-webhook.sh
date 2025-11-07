@@ -84,6 +84,7 @@ docker build \
   --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
   --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
   --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
+  --build-arg GIT_COMMIT="${COMMIT_HASH}" \
   -f /app/Dockerfile \
   -t "${IMAGE_NAME}" \
   -t laurens-list-laurenslist-dev:latest \
