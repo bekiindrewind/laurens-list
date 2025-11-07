@@ -224,8 +224,7 @@ const GOODREADS_BOOKS = [
     'Water for Elephants',
     'The Kite Runner',
     'A Thousand Splendid Suns',
-    'The Glass Castle',
-    'Educated'
+    'The Glass Castle'
 ];
 
 /**
