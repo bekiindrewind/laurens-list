@@ -2156,6 +2156,79 @@ class LaurensList {
                 }
             }
             
+            // If search didn't find it, try direct page fetch as fallback
+            // This handles cases where the page exists but search doesn't return it
+            console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
+            const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+            console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+            
+            try {
+                const directResponse = await fetch(directPageUrl);
+                if (directResponse.ok) {
+                    const directData = await directResponse.json();
+                    console.log(`  📊 Direct page fetch result:`, directData);
+                    
+                    // Check if this looks like a film page
+                    const extractLower = (directData.extract || '').toLowerCase();
+                    const descLower = (directData.description || '').toLowerCase();
+                    const titleLower = (directData.title || '').toLowerCase();
+                    const fullExtract = extractLower;
+                    
+                    const hasFilmInTitle = titleLower.includes('(film)');
+                    const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
+                    const extractContainsFilm = fullExtract.includes('film') || fullExtract.includes('movie');
+                    
+                    const hasPlotIndicators = fullExtract.includes('starring') || 
+                                             fullExtract.includes('directed by') ||
+                                             fullExtract.includes('cast') ||
+                                             fullExtract.includes('character') ||
+                                             fullExtract.includes('plot') ||
+                                             fullExtract.includes('story');
+                    
+                    const isLikelyFilmPage = hasFilmInTitle || 
+                                            hasFilmInDescription ||
+                                            extractContainsFilm ||
+                                            (hasPlotIndicators && !descLower.includes('book') && !descLower.includes('novel'));
+                    
+                    const looksLikePerson = descLower && (
+                        descLower.includes(' is an actor') || 
+                        descLower.includes(' is a actor') ||
+                        descLower.includes(' is an actress') ||
+                        descLower.includes(' is a actress') ||
+                        (descLower.includes('born') && descLower.includes('actor')) ||
+                        (descLower.includes('born') && descLower.includes('actress'))
+                    );
+                    
+                    const looksLikeBook = descLower && (
+                        descLower.includes(' is a book') ||
+                        descLower.includes(' is a novel') ||
+                        (descLower.includes('written by') && !fullExtract.includes('film') && !fullExtract.includes('movie'))
+                    );
+                    
+                    if (directData.extract && directData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
+                        console.log(`  🎬 Wikipedia found movie via direct fetch: ${directData.title}`);
+                        return {
+                            title: directData.title,
+                            description: directData.description || 'Unknown',
+                            plotSummary: directData.extract,
+                            reviews: '',
+                            contentWarnings: '',
+                            publishedDate: 'Unknown',
+                            pageCount: null,
+                            categories: [],
+                            type: 'movie',
+                            source: 'Wikipedia'
+                        };
+                    } else {
+                        console.log(`  ⚠️ Direct page fetch rejected: isLikelyFilmPage=${isLikelyFilmPage}, looksLikePerson=${looksLikePerson}, looksLikeBook=${looksLikeBook}`);
+                    }
+                } else {
+                    console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status}`);
+                }
+            } catch (directError) {
+                console.log(`  ⚠️ Direct page fetch error:`, directError);
+            }
+            
             console.log(`  🎬 Wikipedia: No movie page found for "${query}"`);
             return null;
             
