@@ -165,11 +165,38 @@ else
     echo "✅ Verified docker-compose.yml updated successfully to: ${IMAGE_NAME}"
 fi
 
+# CRITICAL: Use the HOST file path, not the container path
+# Docker Compose reads from the host filesystem, so we must use the host path
+# Also verify the file has the correct tag before starting
+HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+if [ ! -f "$HOST_COMPOSE_FILE" ]; then
+    echo "❌ ERROR: Host docker-compose.yml not found at $HOST_COMPOSE_FILE"
+    exit 1
+fi
+
+# Verify the host file has the correct tag before starting
+HOST_TAG=$(grep "image: laurens-list-laurenslist:" "$HOST_COMPOSE_FILE" | grep -oP "image: \K[^ ]+" | head -1)
+if [ "$HOST_TAG" != "${IMAGE_NAME}" ]; then
+    echo "❌ CRITICAL: Host docker-compose.yml does NOT have the unique tag!"
+    echo "   Found: $HOST_TAG"
+    echo "   Expected: ${IMAGE_NAME}"
+    echo "   This will cause rollback! Updating now..."
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$HOST_COMPOSE_FILE"
+    # Verify again
+    HOST_TAG=$(grep "image: laurens-list-laurenslist:" "$HOST_COMPOSE_FILE" | grep -oP "image: \K[^ ]+" | head -1)
+    if [ "$HOST_TAG" != "${IMAGE_NAME}" ]; then
+        echo "❌ ERROR: Failed to update host docker-compose.yml!"
+        exit 1
+    fi
+    echo "✅ Host docker-compose.yml updated successfully"
+fi
+
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 # Use --pull never to ensure we use the image we just built (not a cached one)
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
+# CRITICAL: Use the HOST file path, not the container path
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$HOST_COMPOSE_FILE" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
 
 # DO NOT restore docker-compose.yml to use 'latest'
 # Keeping the unique tag ensures the container always uses the correct image, even after restarts
