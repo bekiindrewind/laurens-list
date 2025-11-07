@@ -93,7 +93,7 @@ const CANCER_THEMED_CONTENT = {
         'the notebook', 'five feet apart', 'everything everything', 'the sun is also a star',
         'all the bright places', 'looking for alaska', 'paper towns', 'turtles all the way down',
         'the bucket list', '50/50', 'wish i was here', 'the big sick',
-        'the art of racing in the rain',
+        'the art of racing in the rain', 'my oxford year',
         
         // Terminal illness movies
         'steel magnolias', 'beaches', 'terms of endearment', 'love story',
@@ -184,6 +184,7 @@ const IMDB_MOVIES = [
     'The Fault in Our Stars',
     'Lullaby',
     'Cool Kids Don\'t Cry',
+    'My Oxford Year',
     'Sickos',
     'Wish List',
     'Mood Indigo',
