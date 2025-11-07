@@ -34,6 +34,11 @@ echo "🛑 Stopping and removing dev container..."
 docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist-dev || true
 docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist-dev || true
 
+echo "🗑️  Removing old cached image..."
+# Remove the old image to force a complete rebuild
+# This prevents Docker from using cached layers even with --no-cache
+docker rmi laurens-list-laurenslist-dev:latest 2>/dev/null || echo "⚠️  Image not found (will build new one)"
+
 echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
 # Build context is /app (mounted volume) which maps to /root/laurens-list on host
