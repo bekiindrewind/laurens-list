@@ -35,7 +35,15 @@ git stash || true
 # We need to allow git pull to update the file, then we'll update it with unique tag
 # and protect it from future git pulls
 echo "🔓 Temporarily allowing git to update docker-compose.yml..."
+# Unprotect in container's git repo
 git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
+# Also unprotect on host (since /app is mounted from /root/laurens-list, they're the same file)
+# But we need to ensure we're in the right git context
+if [ -f "/root/laurens-list/docker-compose.yml" ]; then
+    cd /root/laurens-list 2>/dev/null || cd /app
+    git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
+    cd /app
+fi
 
 echo "⬇️  Pulling latest changes..."
 git pull origin main
