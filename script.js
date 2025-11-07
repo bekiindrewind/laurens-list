@@ -2280,15 +2280,6 @@ class LaurensList {
                     if (directResponse.ok) {
                         const directData = await directResponse.json();
                         console.log(`  📊 Direct page fetch result:`, directData);
-                    } else if (directResponse.status === 429) {
-                        console.log(`  ⚠️ Wikipedia API rate limit hit (429 Too Many Requests)`);
-                        console.log(`  ⚠️ Direct page fetch failed due to rate limiting - will retry later`);
-                    } else if (directResponse.status === 404) {
-                        console.log(`  ⚠️ Wikipedia page not found (404) - page may not exist at this URL`);
-                    } else {
-                        console.log(`  ⚠️ Direct page fetch failed with status: ${directResponse.status}`);
-                    }
-                    if (directResponse.ok) {
                         
                         // Check if this looks like a film page
                         const extractLower = (directData.extract || '').toLowerCase();
