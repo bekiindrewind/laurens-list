@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Trigger warning website for books and movies",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "test:regression": "node regression-test.js"
   },
   "devDependencies": {
     "fs": "^0.0.1-security"
