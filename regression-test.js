@@ -42,7 +42,20 @@ const CANCER_TERMS = [
     'sick with', 'illness strikes', 'disease affects',
     'coping with illness', 'coping with disease', 'living with illness', 'living with disease',
     'illness story', 'disease story', 'medical drama', 'illness drama',
-    'health struggles', 'medical struggles', 'health battle', 'medical battle'
+    'health struggles', 'medical struggles', 'health battle', 'medical battle',
+    
+    // Strong Death Themes: Phrases that indicate death is a central, repeated theme
+    // These catch books like "Before I Fall" where death is the main focus, not just a casual mention
+    // Only include phrases that indicate death is a central theme (repeated, relived, etc.)
+    'relives death', 'relive death', 'relives dying', 'relive dying',
+    'relives the day of death', 'relive the day of death', 'relives death day', 'relive death day',
+    'relives the day of her death', 'relive the day of her death', 'relives the day of his death', 'relive the day of his death',
+    'relives the day she died', 'relive the day she died', 'relives the day he died', 'relive the day he died',
+    'dies repeatedly', 'repeated death', 'repeated dying', 'death day', 'day of death',
+    'groundhog day death', 'time loop death', 'relives her death', 'relive her death',
+    'relives his death', 'relive his death', 'relives their death', 'relive their death',
+    'death is a central theme', 'death is the main theme', 'death is a recurring theme',
+    'mortality is a central theme', 'mortality is the main theme', 'mortality is a recurring theme'
 ];
 
 const CANCER_SPECIFIC_TERMS = [
