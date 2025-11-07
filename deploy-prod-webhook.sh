@@ -60,6 +60,21 @@ IMAGE_TAG="prod-${COMMIT_HASH}"
 IMAGE_NAME="laurens-list-laurenslist:${IMAGE_TAG}"
 echo "📦 Building image with unique tag: ${IMAGE_NAME}"
 
+# CRITICAL: Update docker-compose.yml IMMEDIATELY after git pull
+# This ensures the unique tag is set before any container operations
+# We update it now (before build) so it's ready when we start the container
+# This prevents Docker Compose from using 'latest' tag on restart
+echo "📝 Updating docker-compose.yml with unique image tag (before build)..."
+# Always use /app path (mounted volume) - this is what Docker Compose reads
+# Even if running on host, we need to update the file that Docker Compose will read
+COMPOSE_FILE="/app/docker-compose.yml"
+if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; then
+    # Running on host - use host path
+    COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+fi
+sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
+echo "✅ docker-compose.yml updated with unique tag: ${IMAGE_NAME}"
+
 # Verify we have the latest code by checking script.js SCRIPT_VERSION
 # This ensures the build context has the latest files
 echo "🔍 Verifying build context has latest code..."
@@ -72,14 +87,24 @@ if [ -n "$ACTUAL_VERSION" ] && [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; the
     git fetch origin
     git reset --hard origin/main
     echo "✅ Hard reset complete - build context should now have latest code"
+    # CRITICAL: Re-apply the unique tag after git reset --hard
+    # git reset --hard reverts docker-compose.yml, so we must update it again
+    echo "📝 Re-updating docker-compose.yml after git reset --hard..."
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
+    echo "✅ docker-compose.yml re-updated with unique tag: ${IMAGE_NAME}"
 fi
 
 echo "🛑 Stopping and removing production container..."
 # Stop and remove the container to avoid build context validation issues
 # Set project name explicitly to match the image name (laurens-list)
-# Use PROJECT_DIR variable to handle both container and host paths
-docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list stop laurenslist || true
-docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list rm -f laurenslist || true
+# Always use /app path (mounted volume) - this is what Docker Compose reads
+COMPOSE_FILE="/app/docker-compose.yml"
+if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; then
+    # Running on host - use host path
+    COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+fi
+docker compose -f "$COMPOSE_FILE" -p laurens-list stop laurenslist || true
+docker compose -f "$COMPOSE_FILE" -p laurens-list rm -f laurenslist || true
 
 echo "🗑️  Removing old cached images..."
 # Remove ALL images with the prod tag pattern to prevent rollbacks
@@ -126,21 +151,23 @@ else
 fi
 
 echo "▶️  Starting production container with unique image tag..."
-# Permanently update docker-compose.yml to use the unique image tag
-# This prevents Docker Compose from using a cached 'latest' reference when container restarts
-# We keep the unique tag in docker-compose.yml so restarts always use the correct image
-# Match dev's working approach - simple and effective
-sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$PROJECT_DIR/docker-compose.yml"
-
+# docker-compose.yml was already updated above (after git pull)
+# This ensures Docker Compose reads the unique tag, not 'latest'
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 # Use --pull never to ensure we use the image we just built (not a cached one)
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
+# Always use /app path (mounted volume) - this is what Docker Compose reads
+COMPOSE_FILE="/app/docker-compose.yml"
+if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; then
+    # Running on host - use host path
+    COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+fi
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$COMPOSE_FILE" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
 
 # DO NOT restore docker-compose.yml to use 'latest'
 # Keeping the unique tag ensures the container always uses the correct image, even after restarts
-echo "📝 docker-compose.yml now uses unique tag: ${IMAGE_NAME}"
+echo "📝 docker-compose.yml uses unique tag: ${IMAGE_NAME}"
 
 echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
@@ -162,7 +189,11 @@ if [ -n "$CONTAINER_IMAGE_FULL" ] && [ -n "$NEW_IMAGE_ID_FULL" ]; then
     else
         echo "⚠️  WARNING: Container might be using an old image!"
         echo "   Forcing container restart..."
-        docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list restart laurenslist
+        COMPOSE_FILE="/app/docker-compose.yml"
+        if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; then
+            COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+        fi
+        docker compose -f "$COMPOSE_FILE" -p laurens-list restart laurenslist
     fi
 else
     echo "⚠️  Could not verify image - container may still be starting"
