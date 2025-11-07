@@ -2161,8 +2161,13 @@ class LaurensList {
             console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
             // Wikipedia page titles use underscores, not spaces or URL encoding
             const wikipediaTitle = query.replace(/\s+/g, '_');
+            // Try summary first (short extract)
             const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
             console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+            
+            // Also prepare URL for full extract (longer content)
+            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&titles=${wikipediaTitle}&origin=*`;
+            console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
             
             try {
                 const directResponse = await fetch(directPageUrl);
