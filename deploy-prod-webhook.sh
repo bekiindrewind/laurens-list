@@ -155,6 +155,19 @@ COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-li
 # Keeping the unique tag ensures the container always uses the correct image, even after restarts
 echo "📝 docker-compose.yml now uses unique tag: ${IMAGE_NAME}"
 
+# Final verification: Check that docker-compose.yml has the correct tag
+FINAL_CHECK=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | head -1)
+echo "📋 Final docker-compose.yml image line: ${FINAL_CHECK}"
+if echo "$FINAL_CHECK" | grep -q "${IMAGE_NAME}"; then
+    echo "✅ docker-compose.yml correctly pinned to unique tag"
+else
+    echo "❌ CRITICAL: docker-compose.yml does NOT have the unique tag!"
+    echo "   This will cause rollbacks on container restart!"
+    echo "   Current line: ${FINAL_CHECK}"
+    echo "   Expected: image: ${IMAGE_NAME}"
+    echo "   Deployment will continue, but rollback protection is compromised!"
+fi
+
 echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
 sleep 2
