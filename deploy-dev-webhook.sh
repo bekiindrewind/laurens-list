@@ -34,6 +34,20 @@ IMAGE_TAG="dev-${COMMIT_HASH}"
 IMAGE_NAME="laurens-list-laurenslist-dev:${IMAGE_TAG}"
 echo "📦 Building image with unique tag: ${IMAGE_NAME}"
 
+# Verify we have the latest code by checking script.js SCRIPT_VERSION
+# This ensures the build context has the latest files
+echo "🔍 Verifying build context has latest code..."
+EXPECTED_VERSION="${COMMIT_HASH}-dev"
+ACTUAL_VERSION=$(grep -oP "const SCRIPT_VERSION = '\K[^']+" /app/script.js 2>/dev/null || echo "")
+if [ -n "$ACTUAL_VERSION" ] && [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
+    echo "⚠️  WARNING: script.js has SCRIPT_VERSION='$ACTUAL_VERSION' but current commit is '$COMMIT_HASH'"
+    echo "   This means the build context might have old code!"
+    echo "   Forcing hard reset to ensure we have latest code..."
+    git fetch origin
+    git reset --hard origin/dev
+    echo "✅ Hard reset complete - build context should now have latest code"
+fi
+
 echo "🛑 Stopping and removing dev container..."
 # Stop and remove the container to avoid build context validation issues
 # Set project name explicitly to match the image name (laurens-list)
