@@ -419,9 +419,14 @@ The deployment script now uses **unique image tags** (commit hash-based) instead
 
 1. Deployment script gets current commit hash: `COMMIT_HASH=$(git rev-parse --short HEAD)`
 2. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
-3. Updates `docker-compose.yml` to use unique tag permanently
-4. Passes `GIT_COMMIT` build arg to Dockerfile
+3. Updates `docker-compose.yml` to use unique tag permanently:
+   - Updates both mounted volume (`/app/docker-compose.yml`) and host file (`/root/laurens-list/docker-compose.yml`)
+   - Verifies update succeeded with multiple checks
+   - Retries with more specific pattern if first attempt fails
+   - Exits with error if update fails (prevents deployment with wrong tag)
+4. Passes `GIT_COMMIT` and `ENV_SUFFIX="prod"` build args to Dockerfile
 5. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
+6. Final verification check before starting container to ensure unique tag is set
 
 **Verification**:
 
@@ -449,10 +454,13 @@ echo "Container SCRIPT_VERSION: ${CONTAINER_VERSION}"
 **Why This Prevents Rollbacks**:
 
 1. **Unique tags are immutable**: Once an image is tagged with `prod-c006ce1`, that tag always points to that specific image
-2. **docker-compose.yml is pinned**: The unique tag is stored permanently, so restarts always use the correct image
+2. **docker-compose.yml is pinned**: The unique tag is stored permanently in both mounted volume and host file, so restarts always use the correct image
 3. **No `latest` tag confusion**: Docker Compose can't accidentally use an old `latest` image because `docker-compose.yml` doesn't reference `latest`
 4. **Build context verification**: Script checks if build context has latest code and forces hard reset if needed
 5. **SCRIPT_VERSION accuracy**: `SCRIPT_VERSION` is set during build using actual commit hash, not source code
+6. **Multiple verification checks**: Script verifies `docker-compose.yml` update succeeded before starting container
+7. **Exit on failure**: If `docker-compose.yml` update fails, deployment exits with error (prevents rollback)
+8. **Final verification**: Before starting container, script performs final check to ensure unique tag is set
 
 **Prevention**:
 - The deployment script automatically uses unique tags and pins `docker-compose.yml`
@@ -513,7 +521,7 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener-p
 
 **Setup Time Estimate**: ~30-45 minutes (can copy most configuration from dev setup)
 
-**Last Updated**: November 7, 2025 - Includes fixes for deployment script path handling, environment variable passing, and rollback prevention
+**Last Updated**: November 7, 2025 - Includes fixes for deployment script path handling, environment variable passing, and comprehensive rollback prevention
 
 **Production Setup Issues Resolved**:
 1. ✅ Fixed deployment script path handling (`/app` directory check)
@@ -522,4 +530,10 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener-p
 4. ✅ Implemented rollback prevention with unique image tags
 5. ✅ Added build context verification to ensure latest code is used
 6. ✅ Added `SCRIPT_VERSION` auto-update during Docker build
+7. ✅ Enhanced `docker-compose.yml` update persistence (updates both mounted volume and host file)
+8. ✅ Added multiple verification checks to ensure `docker-compose.yml` update succeeded
+9. ✅ Added exit-on-failure if `docker-compose.yml` update fails (prevents deployment with wrong tag)
+10. ✅ Added final verification check before starting container
+
+**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-41bae5a`). Container restarts confirmed to use pinned unique tag, not `latest`.
 

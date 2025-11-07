@@ -334,6 +334,12 @@ The system includes automated deployment for both **dev** and **production** env
 - Implemented rollback prevention with unique image tags and pinned `docker-compose.yml`
 - Added build context verification to ensure latest code is used
 - Added `SCRIPT_VERSION` auto-update during Docker build using `GIT_COMMIT` and `ENV_SUFFIX` build args
+- Enhanced `docker-compose.yml` update persistence (updates both mounted volume and host file)
+- Added multiple verification checks to ensure `docker-compose.yml` update succeeded
+- Added exit-on-failure if `docker-compose.yml` update fails (prevents deployment with wrong tag)
+- Added final verification check before starting container
+
+**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags. Container restarts confirmed to use pinned unique tag, not `latest`.
 
 See `PRODUCTION_WEBHOOK_SETUP.md` for detailed troubleshooting of these issues.
 

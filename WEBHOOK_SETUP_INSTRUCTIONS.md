@@ -706,6 +706,9 @@ All of these issues are now documented in this troubleshooting section.
 - Deployment script path handling (`/app` directory check)
 - Environment variable passing from webhook listener to deployment script
 - `ENV_SUFFIX` build arg for dev/prod distinction in `SCRIPT_VERSION`
+- Enhanced rollback prevention with multiple verification checks
+- `docker-compose.yml` update persistence (updates both mounted volume and host file)
+- Exit-on-failure behavior if `docker-compose.yml` update fails
 
 ## Verifying Deployments
 
