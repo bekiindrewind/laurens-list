@@ -2170,7 +2170,8 @@ class LaurensList {
             console.log(`  🔗 Direct page URL: ${directPageUrl}`);
             
             // Also prepare URL for full extract (longer content)
-            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&titles=${wikipediaTitle}&origin=*`;
+            // Use exchars to get more content (up to 5000 characters)
+            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
             console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
             
             try {
@@ -2229,11 +2230,23 @@ class LaurensList {
                                 if (pages) {
                                     const pageId = Object.keys(pages)[0];
                                     const pageData = pages[pageId];
-                                    if (pageData.extract && pageData.extract.length > directData.extract.length) {
-                                        console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
-                                        fullExtract = pageData.extract;
+                                    if (pageData.extract) {
+                                        console.log(`  📚 Full extract available: ${pageData.extract.length} chars (summary: ${directData.extract.length} chars)`);
+                                        // Always use the full extract if it's longer, even if only slightly
+                                        if (pageData.extract.length > directData.extract.length) {
+                                            console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
+                                            fullExtract = pageData.extract;
+                                        } else {
+                                            console.log(`  ⚠️ Full extract (${pageData.extract.length} chars) is not longer than summary (${directData.extract.length} chars), using summary`);
+                                        }
+                                    } else {
+                                        console.log(`  ⚠️ No extract found in full extract response`);
                                     }
+                                } else {
+                                    console.log(`  ⚠️ No pages found in full extract response`);
                                 }
+                            } else {
+                                console.log(`  ⚠️ Full extract fetch failed with status: ${fullExtractResponse.status}`);
                             }
                         } catch (fullExtractError) {
                             console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
