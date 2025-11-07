@@ -7,6 +7,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = 8080;
 
+// Trust proxy (Traefik) for accurate IP detection in rate limiting
+app.set('trust proxy', true);
+
 app.use(cors());
 app.use(express.json());
 
