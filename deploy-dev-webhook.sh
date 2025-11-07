@@ -101,12 +101,18 @@ echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
 sleep 2
 # Check the image ID of the running container
-CONTAINER_IMAGE=$(docker inspect --format='{{.Image}}' $(docker ps --filter "name=laurenslist-dev" --format "{{.ID}}" | head -1) 2>/dev/null || echo "")
-NEW_IMAGE_ID=$(docker images --format "{{.ID}}" "${IMAGE_NAME}" | head -1)
-if [ -n "$CONTAINER_IMAGE" ] && [ -n "$NEW_IMAGE_ID" ]; then
-    echo "📊 Container image ID: $CONTAINER_IMAGE"
-    echo "📊 New image ID: $NEW_IMAGE_ID"
-    if [ "$CONTAINER_IMAGE" = "$NEW_IMAGE_ID" ]; then
+CONTAINER_IMAGE_FULL=$(docker inspect --format='{{.Image}}' $(docker ps --filter "name=laurenslist-dev" --format "{{.ID}}" | head -1) 2>/dev/null || echo "")
+NEW_IMAGE_ID_FULL=$(docker images --format "{{.ID}}" "${IMAGE_NAME}" | head -1)
+# Extract short hash from full SHA256 (remove 'sha256:' prefix and take first 12 chars)
+CONTAINER_IMAGE_SHORT=$(echo "$CONTAINER_IMAGE_FULL" | sed 's/sha256://' | cut -c1-12)
+NEW_IMAGE_ID_SHORT=$(echo "$NEW_IMAGE_ID_FULL" | cut -c1-12)
+
+if [ -n "$CONTAINER_IMAGE_FULL" ] && [ -n "$NEW_IMAGE_ID_FULL" ]; then
+    echo "📊 Container image: $CONTAINER_IMAGE_FULL"
+    echo "📊 New image: $NEW_IMAGE_ID_FULL"
+    echo "📊 Container short hash: $CONTAINER_IMAGE_SHORT"
+    echo "📊 New image short hash: $NEW_IMAGE_ID_SHORT"
+    if [ "$CONTAINER_IMAGE_SHORT" = "$NEW_IMAGE_ID_SHORT" ]; then
         echo "✅ Container is using the new image (${IMAGE_TAG})!"
     else
         echo "⚠️  WARNING: Container might be using an old image!"
