@@ -318,7 +318,14 @@ The system includes automated deployment for both **dev** and **production** env
 
 **Timeout Prevention**: GitHub times out after ~10 seconds, but deployment takes 6-10 seconds. The webhook responds immediately with `202 Accepted` and runs deployment asynchronously to prevent timeouts while ensuring deployments complete successfully.
 
-**Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime.
+**Rollback Prevention**: The deployment system uses **unique image tags** (commit hash-based) instead of `latest` to prevent rollbacks:
+- Each deployment gets a unique tag (e.g., `dev-c006ce1`, `prod-c006ce1`)
+- `docker-compose.yml` is permanently updated to use the unique tag
+- When containers restart, Docker Compose uses the pinned unique tag, not a mutable `latest` tag
+- Build context verification ensures latest code is used before building
+- `SCRIPT_VERSION` is automatically updated during Docker build using `GIT_COMMIT` build arg
+
+**Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime. Rollback prevention verified and working.
 
 **Setup Time**:
 - Initial setup: ~1-2 hours (includes troubleshooting)

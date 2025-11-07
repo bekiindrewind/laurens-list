@@ -292,6 +292,72 @@ Container names follow format: `{project-name}-{service-name}-{number}`
 
 **Note**: The deployment script already includes these fixes. If you encounter this error, ensure the latest version of `deploy-prod-webhook.sh` is on the server.
 
+### Issue: Container rollback after restart
+
+**Symptom**:
+- Container was working correctly with latest code
+- Container restarts (due to `restart: always` or server restart)
+- After restart, container is serving old code
+- `SCRIPT_VERSION` in browser console shows old commit hash
+
+**Cause**:
+- Docker Compose was using `latest` tag, which is mutable
+- When container restarts, Docker Compose resolves `latest` to whatever image is available
+- If an old `latest` image exists, Docker Compose uses it instead of the new one
+
+**Solution - Rollback Prevention**:
+
+The deployment script now uses **unique image tags** (commit hash-based) instead of `latest`:
+
+1. **Unique Image Tags**: Each deployment gets a unique tag (e.g., `prod-c006ce1`)
+2. **Pinned docker-compose.yml**: The unique tag is permanently stored in `docker-compose.yml`
+3. **Build Context Verification**: Script verifies build context has latest code before building
+4. **SCRIPT_VERSION Auto-Update**: `SCRIPT_VERSION` is updated during Docker build using `GIT_COMMIT` build arg
+
+**How It Works**:
+
+1. Deployment script gets current commit hash: `COMMIT_HASH=$(git rev-parse --short HEAD)`
+2. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
+3. Updates `docker-compose.yml` to use unique tag permanently
+4. Passes `GIT_COMMIT` build arg to Dockerfile
+5. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
+
+**Verification**:
+
+After deployment, verify rollback protection is working:
+
+```bash
+cd /root/laurens-list
+
+# Check docker-compose.yml uses unique tag (not 'latest')
+grep "image:" docker-compose.yml | grep laurenslist
+# Should show: image: laurens-list-laurenslist:prod-XXXXXXX
+
+# Check container is using the unique tag
+docker ps --filter "name=laurenslist" --format "{{.Image}}" | grep -v "dev"
+# Should match the image tag in docker-compose.yml
+
+# Check SCRIPT_VERSION matches current commit
+CURRENT_COMMIT=$(git rev-parse --short HEAD)
+CONTAINER_VERSION=$(docker exec laurens-list-laurenslist-1 cat /app/script.js | grep "SCRIPT_VERSION" | grep -oP "'\K[^']+" | head -1)
+echo "Current commit: ${CURRENT_COMMIT}"
+echo "Container SCRIPT_VERSION: ${CONTAINER_VERSION}"
+# Should match: ${CURRENT_COMMIT}-prod (or similar)
+```
+
+**Why This Prevents Rollbacks**:
+
+1. **Unique tags are immutable**: Once an image is tagged with `prod-c006ce1`, that tag always points to that specific image
+2. **docker-compose.yml is pinned**: The unique tag is stored permanently, so restarts always use the correct image
+3. **No `latest` tag confusion**: Docker Compose can't accidentally use an old `latest` image because `docker-compose.yml` doesn't reference `latest`
+4. **Build context verification**: Script checks if build context has latest code and forces hard reset if needed
+5. **SCRIPT_VERSION accuracy**: `SCRIPT_VERSION` is set during build using actual commit hash, not source code
+
+**Prevention**:
+- The deployment script automatically uses unique tags and pins `docker-compose.yml`
+- No manual intervention needed - rollback protection is built-in
+- Each deployment gets a new unique tag, old images are removed before building
+
 ## Quick Reference
 
 ### Container Names

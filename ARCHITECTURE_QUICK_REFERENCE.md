@@ -62,6 +62,11 @@ GitHub → Webhook POST → Webhook Listener (202 Accepted) → Async Deployment
 
 **Note**: Webhook responds immediately with `202 Accepted` to prevent GitHub timeouts, then runs deployment asynchronously (takes 16-36 seconds).
 
+**Rollback Prevention**: Uses unique image tags (commit hash-based) instead of `latest`:
+- Each deployment gets unique tag: `dev-{commit-hash}`
+- `docker-compose.yml` permanently pinned to unique tag
+- Prevents rollbacks when container restarts
+
 ### Automated Deployment (Production)
 ```
 GitHub → Webhook POST → Production Webhook Listener (202 Accepted) → Async Deployment → Git Pull → Docker Build → Container → Traefik → Users
