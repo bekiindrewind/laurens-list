@@ -320,7 +320,9 @@ The system includes automated deployment for both **dev** and **production** env
 
 **Rollback Prevention**: The deployment system uses **unique image tags** (commit hash-based) instead of `latest` to prevent rollbacks:
 - Each deployment gets a unique tag (e.g., `dev-c006ce1`, `prod-c006ce1`)
-- `docker-compose.yml` is permanently updated to use the unique tag
+- **CRITICAL**: `docker-compose.yml` is updated IMMEDIATELY after `git pull` (before build) - this prevents git from reverting the unique tag changes since `docker-compose.yml` is tracked by git
+- If `git reset --hard` happens during build context verification, the unique tag is re-applied to `docker-compose.yml`
+- Always uses `/app/docker-compose.yml` (mounted volume) consistently throughout - this is what Docker Compose reads
 - When containers restart, Docker Compose uses the pinned unique tag, not a mutable `latest` tag
 - Build context verification ensures latest code is used before building
 - `SCRIPT_VERSION` is automatically updated during Docker build using `GIT_COMMIT` build arg
@@ -337,10 +339,13 @@ The system includes automated deployment for both **dev** and **production** env
 - Added `SCRIPT_VERSION` auto-update during Docker build using `GIT_COMMIT` and `ENV_SUFFIX` build args
 - **Simplified to match dev's proven working approach** (removed complex git protection logic)
 - Uses simple `sed` update of `docker-compose.yml` like dev (proven to work reliably)
+- **Fixed critical rollback issue (Commit 611f71d)**: Update `docker-compose.yml` immediately after `git pull` to prevent git from reverting unique tag changes. Re-apply unique tag after `git reset --hard` if it happens. Always use `/app/docker-compose.yml` consistently throughout.
 
-**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+**Rollback Prevention Verified**: 
+- November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+- **Latest Fix (Commit 611f71d)**: Fixed critical issue where `git pull` was reverting the unique tag changes. Solution: Update `docker-compose.yml` IMMEDIATELY after `git pull` (before build) and re-apply unique tag after `git reset --hard` if it happens. Always use `/app/docker-compose.yml` consistently throughout. **Verified working** - production container confirmed using latest version (`611f71d-prod`).
 
-**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach.
+**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach. **Critical addition**: Must update `docker-compose.yml` immediately after `git pull` to prevent git from reverting the unique tag changes.
 
 See `PRODUCTION_WEBHOOK_SETUP.md` for detailed troubleshooting of these issues.
 
