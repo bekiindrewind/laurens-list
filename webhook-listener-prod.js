@@ -91,19 +91,24 @@ app.post('/webhook', (req, res) => {
         
         // Run deployment asynchronously (don't wait for response)
         const deployScript = '/app/deploy-prod-webhook.sh';
+        // Pass all environment variables to the deployment script
+        // The script will also load from /root/.env, but we pass process.env as backup
         exec(`bash ${deployScript}`, {
             cwd: '/app',
-            env: { ...process.env, PATH: process.env.PATH }
+            env: process.env,  // Pass all environment variables (including from env_file)
+            maxBuffer: 1024 * 1024 * 10  // 10MB buffer for large output
         }, (error, stdout, stderr) => {
             if (error) {
                 console.error('❌ Production deployment error:', error);
                 console.error('Error details:', error.message);
+                console.error('Error code:', error.code);
                 console.error('STDERR:', stderr);
+                console.error('STDOUT (first 1000 chars):', stdout?.substring(0, 1000));
                 return; // Response already sent, just log the error
             }
             
             console.log('✅ Production deployment completed successfully');
-            console.log('📋 Deployment output:', stdout);
+            console.log('📋 Deployment output (first 2000 chars):', stdout?.substring(0, 2000));
             
             if (stderr) {
                 console.warn('⚠️  Deployment warnings:', stderr);
@@ -179,19 +184,24 @@ app.post('/', (req, res) => {
         
         // Run deployment asynchronously (don't wait for response)
         const deployScript = '/app/deploy-prod-webhook.sh';
+        // Pass all environment variables to the deployment script
+        // The script will also load from /root/.env, but we pass process.env as backup
         exec(`bash ${deployScript}`, {
             cwd: '/app',
-            env: { ...process.env, PATH: process.env.PATH }
+            env: process.env,  // Pass all environment variables (including from env_file)
+            maxBuffer: 1024 * 1024 * 10  // 10MB buffer for large output
         }, (error, stdout, stderr) => {
             if (error) {
                 console.error('❌ Production deployment error:', error);
                 console.error('Error details:', error.message);
+                console.error('Error code:', error.code);
                 console.error('STDERR:', stderr);
+                console.error('STDOUT (first 1000 chars):', stdout?.substring(0, 1000));
                 return; // Response already sent, just log the error
             }
             
             console.log('✅ Production deployment completed successfully');
-            console.log('📋 Deployment output:', stdout);
+            console.log('📋 Deployment output (first 2000 chars):', stdout?.substring(0, 2000));
             
             if (stderr) {
                 console.warn('⚠️  Deployment warnings:', stderr);
