@@ -28,21 +28,26 @@ git stash || true
 echo "⬇️  Pulling latest changes..."
 git pull origin dev
 
+# Get the current commit hash for unique image tagging
+COMMIT_HASH=$(git rev-parse --short HEAD)
+IMAGE_TAG="dev-${COMMIT_HASH}"
+IMAGE_NAME="laurens-list-laurenslist-dev:${IMAGE_TAG}"
+echo "📦 Building image with unique tag: ${IMAGE_NAME}"
+
 echo "🛑 Stopping and removing dev container..."
 # Stop and remove the container to avoid build context validation issues
 # Set project name explicitly to match the image name (laurens-list)
 docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist-dev || true
 docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist-dev || true
 
-echo "🗑️  Removing old cached image and all dangling images..."
-# Remove the old image to force a complete rebuild
-# This prevents Docker from using cached layers even with --no-cache
-# Also remove any dangling images that might be used by restart policy
-docker rmi laurens-list-laurenslist-dev:latest 2>/dev/null || echo "⚠️  Image not found (will build new one)"
-# Remove any dangling images that might be tagged with the same name
+echo "🗑️  Removing old cached images..."
+# Remove ALL images with the dev tag pattern to prevent rollbacks
+# This ensures Docker Compose can't use an old image when container restarts
+docker images --format "{{.Repository}}:{{.Tag}}" | grep "laurens-list-laurenslist-dev" | xargs -r docker rmi 2>/dev/null || true
+# Remove any dangling images
 docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
-# Force remove any containers using the old image
-docker ps -a --filter "ancestor=laurens-list-laurenslist-dev:latest" -q | xargs -r docker rm -f 2>/dev/null || true
+# Force remove any containers using old images
+docker ps -a --filter "ancestor=laurens-list-laurenslist-dev" -q | xargs -r docker rm -f 2>/dev/null || true
 
 echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
@@ -59,13 +64,14 @@ if [ -z "$TMDB_API_KEY" ] || [ -z "$GOOGLE_BOOKS_API_KEY" ] || [ -z "$DOESTHEDOG
     echo "   This will cause the build to fail or use empty API keys!"
 fi
 
-echo "🔨 Building Docker image..."
+echo "🔨 Building Docker image with unique tag..."
 docker build \
   --no-cache \
   --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
   --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
   --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
   -f /app/Dockerfile \
+  -t "${IMAGE_NAME}" \
   -t laurens-list-laurenslist-dev:latest \
   /app
 
@@ -76,29 +82,39 @@ else
     exit 1
 fi
 
-echo "▶️  Starting dev container..."
+echo "▶️  Starting dev container with unique image tag..."
+# Temporarily update docker-compose.yml to use the unique image tag
+# This prevents Docker Compose from using a cached 'latest' reference
+sed -i "s|image: laurens-list-laurenslist-dev:latest|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
+
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 # Use --pull never to ensure we use the image we just built (not a cached one)
 COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist-dev
 
+# Restore docker-compose.yml to use 'latest' for future deployments
+# (The container is now running with the unique tag, so it won't change)
+sed -i "s|image: ${IMAGE_NAME}|image: laurens-list-laurenslist-dev:latest|g" /app/docker-compose.yml
+
 echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
 sleep 2
 # Check the image ID of the running container
 CONTAINER_IMAGE=$(docker inspect --format='{{.Image}}' $(docker ps --filter "name=laurenslist-dev" --format "{{.ID}}" | head -1) 2>/dev/null || echo "")
-NEW_IMAGE_ID=$(docker images --format "{{.ID}}" laurens-list-laurenslist-dev:latest | head -1)
+NEW_IMAGE_ID=$(docker images --format "{{.ID}}" "${IMAGE_NAME}" | head -1)
 if [ -n "$CONTAINER_IMAGE" ] && [ -n "$NEW_IMAGE_ID" ]; then
     echo "📊 Container image ID: $CONTAINER_IMAGE"
     echo "📊 New image ID: $NEW_IMAGE_ID"
     if [ "$CONTAINER_IMAGE" = "$NEW_IMAGE_ID" ]; then
-        echo "✅ Container is using the new image!"
+        echo "✅ Container is using the new image (${IMAGE_TAG})!"
     else
         echo "⚠️  WARNING: Container might be using an old image!"
         echo "   Forcing container restart..."
         docker compose -f /app/docker-compose.yml -p laurens-list restart laurenslist-dev
     fi
+else
+    echo "⚠️  Could not verify image - container may still be starting"
 fi
 
 if [ $? -eq 0 ]; then
