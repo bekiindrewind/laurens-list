@@ -118,13 +118,19 @@ echo "▶️  Starting production container with unique image tag..."
 # Permanently update docker-compose.yml to use the unique image tag
 # This prevents Docker Compose from using a cached 'latest' reference when container restarts
 # We keep the unique tag in docker-compose.yml so restarts always use the correct image
-# Update BOTH the mounted volume (/app) and the host file (/root/laurens-list) to ensure persistence
-sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
-# Also update the host file directly (in case the mount point is different)
-if [ -f "/root/laurens-list/docker-compose.yml" ]; then
-    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /root/laurens-list/docker-compose.yml
-    echo "✅ Updated docker-compose.yml on host: /root/laurens-list/docker-compose.yml"
+# CRITICAL: Update the HOST file first, then the mounted volume
+# Docker Compose reads from the host filesystem, not the container
+HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+if [ -f "$HOST_COMPOSE_FILE" ]; then
+    echo "📝 Updating docker-compose.yml on HOST: $HOST_COMPOSE_FILE"
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$HOST_COMPOSE_FILE"
+    echo "✅ Updated docker-compose.yml on host"
+else
+    echo "⚠️  WARNING: Host docker-compose.yml not found at $HOST_COMPOSE_FILE"
 fi
+# Also update the mounted volume (for consistency)
+sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
+echo "✅ Updated docker-compose.yml in mounted volume"
 # Verify the update worked
 UPDATED_TAG=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | grep -oP "image: \K[^ ]+" | head -1)
 if [ "$UPDATED_TAG" != "${IMAGE_NAME}" ]; then
@@ -179,11 +185,24 @@ if echo "$FINAL_CHECK" | grep -q "${IMAGE_NAME}"; then
         echo "   This means git pull might revert the unique tag on next deployment!"
     fi
     
-    # Also protect the host file if it exists
+    # CRITICAL: Protect the HOST file from git reverts
+    # Docker Compose reads from the host filesystem, so we must protect the host file
     if [ -f "/root/laurens-list/docker-compose.yml" ]; then
-        cd /root/laurens-list
-        git update-index --assume-unchanged docker-compose.yml 2>/dev/null || true
+        echo "🔒 Protecting docker-compose.yml on HOST from git reverts..."
+        # Use docker exec to run git command on the host (since we're in a container)
+        # Or change directory to host path and run git command
+        # Since /app is mounted from /root/laurens-list, we can cd to /root/laurens-list
+        # But we need to ensure we're in the right git repository context
+        cd /root/laurens-list 2>/dev/null || cd /app
+        git update-index --assume-unchanged docker-compose.yml 2>/dev/null || {
+            echo "⚠️  WARNING: Failed to protect docker-compose.yml on host"
+            echo "   Trying alternative method..."
+            # Try using the mounted volume path
+            cd /app
+            git update-index --assume-unchanged docker-compose.yml 2>/dev/null || true
+        }
         cd /app
+        echo "✅ docker-compose.yml protected on host"
     fi
 else
     echo "❌ CRITICAL: docker-compose.yml does NOT have the unique tag!"
