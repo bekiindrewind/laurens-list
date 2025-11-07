@@ -7,17 +7,11 @@ set -e  # Exit on error
 echo "🚀 Starting dev deployment via webhook..."
 echo "📅 $(date)"
 
-# Load environment variables from .env file if it exists
-# The webhook container loads from /root/.env, but we need them in this script
-if [ -f /root/.env ]; then
-    echo "📋 Loading environment variables from /root/.env..."
-    set -a  # Automatically export all variables
-    source /root/.env
-    set +a  # Stop automatically exporting
-    echo "✅ Environment variables loaded"
-else
-    echo "⚠️  Warning: /root/.env file not found"
-fi
+# Environment variables are already loaded by docker-compose via env_file
+# The webhook container loads them from /root/.env on the host via env_file in docker-compose.yml
+# They're available in process.env and passed to this script via exec()
+# So we don't need to source the file - just check if they're set
+echo "📋 Checking environment variables..."
 
 # Navigate to project directory (mounted volume)
 cd /app
