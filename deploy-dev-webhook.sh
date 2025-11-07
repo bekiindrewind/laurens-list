@@ -34,10 +34,15 @@ echo "🛑 Stopping and removing dev container..."
 docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist-dev || true
 docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist-dev || true
 
-echo "🗑️  Removing old cached image..."
+echo "🗑️  Removing old cached image and all dangling images..."
 # Remove the old image to force a complete rebuild
 # This prevents Docker from using cached layers even with --no-cache
+# Also remove any dangling images that might be used by restart policy
 docker rmi laurens-list-laurenslist-dev:latest 2>/dev/null || echo "⚠️  Image not found (will build new one)"
+# Remove any dangling images that might be tagged with the same name
+docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
+# Force remove any containers using the old image
+docker ps -a --filter "ancestor=laurens-list-laurenslist-dev:latest" -q | xargs -r docker rm -f 2>/dev/null || true
 
 echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
@@ -75,7 +80,26 @@ echo "▶️  Starting dev container..."
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate laurenslist-dev
+# Use --pull never to ensure we use the image we just built (not a cached one)
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist-dev
+
+echo "🔍 Verifying container is using the new image..."
+# Wait a moment for container to start
+sleep 2
+# Check the image ID of the running container
+CONTAINER_IMAGE=$(docker inspect --format='{{.Image}}' $(docker ps --filter "name=laurenslist-dev" --format "{{.ID}}" | head -1) 2>/dev/null || echo "")
+NEW_IMAGE_ID=$(docker images --format "{{.ID}}" laurens-list-laurenslist-dev:latest | head -1)
+if [ -n "$CONTAINER_IMAGE" ] && [ -n "$NEW_IMAGE_ID" ]; then
+    echo "📊 Container image ID: $CONTAINER_IMAGE"
+    echo "📊 New image ID: $NEW_IMAGE_ID"
+    if [ "$CONTAINER_IMAGE" = "$NEW_IMAGE_ID" ]; then
+        echo "✅ Container is using the new image!"
+    else
+        echo "⚠️  WARNING: Container might be using an old image!"
+        echo "   Forcing container restart..."
+        docker compose -f /app/docker-compose.yml -p laurens-list restart laurenslist-dev
+    fi
+fi
 
 if [ $? -eq 0 ]; then
     echo "✅ Container started successfully"

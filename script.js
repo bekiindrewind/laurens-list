@@ -6,7 +6,7 @@ let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 // Version identifier for debugging - uses git commit hash
 // This should be updated to match the current git commit hash
 // Check with: git rev-parse --short HEAD
-const SCRIPT_VERSION = '255d33b-dev';
+const SCRIPT_VERSION = '521bbb4-dev';
 console.log(`📦 Script version: ${SCRIPT_VERSION}`);
 console.log(`📦 Deployed: ${new Date().toISOString()}`);
 
