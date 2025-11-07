@@ -32,11 +32,14 @@ echo "🔄 Stashing any local changes..."
 git stash || true
 
 echo "⬇️  Pulling latest changes..."
+# Temporarily allow git to update docker-compose.yml during pull
+# We'll update it with unique tag after building
+git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
 git pull origin main
 
 # IMPORTANT: After git pull, docker-compose.yml will have 'latest' tag
 # We'll update it AFTER building the image with the unique tag
-# This ensures the file persists even if git tries to revert it
+# Then we'll tell git to ignore changes to this file so it doesn't revert on next pull
 
 # Get the current commit hash for unique image tagging
 COMMIT_HASH=$(git rev-parse --short HEAD)
@@ -160,6 +163,25 @@ FINAL_CHECK=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | 
 echo "📋 Final docker-compose.yml image line: ${FINAL_CHECK}"
 if echo "$FINAL_CHECK" | grep -q "${IMAGE_NAME}"; then
     echo "✅ docker-compose.yml correctly pinned to unique tag"
+    
+    # CRITICAL: Tell git to ignore changes to docker-compose.yml
+    # This prevents git pull from reverting our unique tag update
+    # This is essential for rollback prevention
+    echo "🔒 Locking docker-compose.yml to prevent git from reverting unique tag..."
+    git update-index --assume-unchanged docker-compose.yml
+    if [ $? -eq 0 ]; then
+        echo "✅ docker-compose.yml is now protected from git pull reverts"
+    else
+        echo "⚠️  WARNING: Failed to protect docker-compose.yml from git reverts"
+        echo "   This means git pull might revert the unique tag on next deployment!"
+    fi
+    
+    # Also protect the host file if it exists
+    if [ -f "/root/laurens-list/docker-compose.yml" ]; then
+        cd /root/laurens-list
+        git update-index --assume-unchanged docker-compose.yml 2>/dev/null || true
+        cd /app
+    fi
 else
     echo "❌ CRITICAL: docker-compose.yml does NOT have the unique tag!"
     echo "   This will cause rollbacks on container restart!"
