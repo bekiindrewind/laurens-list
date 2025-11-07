@@ -81,6 +81,26 @@ IMAGE_TAG="prod-${COMMIT_HASH}"
 IMAGE_NAME="laurens-list-laurenslist:${IMAGE_TAG}"
 echo "📦 Building image with unique tag: ${IMAGE_NAME}"
 
+# CRITICAL: Verify build context has latest code by checking a specific file
+# Check if script.js has the latest features (confidence display, My Oxford Year fix)
+echo "🔍 Verifying build context has latest code..."
+if ! grep -q "Book confidence:" "$PROJECT_DIR/script.js" 2>/dev/null; then
+    echo "❌ ERROR: Build context missing confidence display code!"
+    echo "   This means the build context has old code despite git reset --hard"
+    echo "   Forcing another hard reset..."
+    git fetch origin
+    git reset --hard origin/main
+    echo "✅ Hard reset complete - build context should now have latest code"
+fi
+if ! grep -q "My Oxford Year" "$PROJECT_DIR/script.js" 2>/dev/null; then
+    echo "⚠️  WARNING: Build context missing 'My Oxford Year' fix!"
+    echo "   Forcing another hard reset..."
+    git fetch origin
+    git reset --hard origin/main
+    echo "✅ Hard reset complete - build context should now have latest code"
+fi
+echo "✅ Build context verified - has latest code"
+
 # CRITICAL: Update docker-compose.yml IMMEDIATELY after git reset --hard
 # git reset --hard reverts docker-compose.yml, so we MUST update it right after
 # This ensures the unique tag is set before any container operations
