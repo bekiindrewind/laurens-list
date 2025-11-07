@@ -337,18 +337,32 @@ Container names follow format: `{project-name}-{service-name}-{number}`
 ### Issue: Environment variables not passed to deployment script
 
 **Symptom**:
-- Webhook triggers deployment successfully
+- Webhook triggers deployment successfully OR script run manually on host
 - Docker build fails with empty API keys
 - Error: `SCRIPT_VERSION` shows `unknown-dev` instead of commit hash with `-prod` suffix
 - Build args (`GIT_COMMIT`, `ENV_SUFFIX`) are not being passed correctly
 
 **Cause**:
+- When running manually on host, environment variables aren't loaded from `/root/.env`
 - Webhook listener was using `env: { ...process.env, PATH: process.env.PATH }` which doesn't properly spread all environment variables
 - Missing `maxBuffer` causes large output to be truncated
 - Environment variables from `env_file` in `docker-compose.yml` weren't being passed to the deployment script
 
 **Solution**:
-1. **Update `webhook-listener-prod.js`** to pass all environment variables correctly:
+1. **Update `deploy-prod-webhook.sh`** to load environment variables when running on host:
+   ```bash
+   # Load environment variables if running on host (from /root/.env)
+   # When running in container, env vars are passed via process.env
+   if [ ! -d "/app" ] && [ -f "/root/.env" ]; then
+       echo "📝 Loading environment variables from /root/.env..."
+       set -a  # Automatically export all variables
+       source /root/.env
+       set +a  # Stop automatically exporting
+       echo "✅ Environment variables loaded"
+   fi
+   ```
+
+2. **Update `webhook-listener-prod.js`** to pass all environment variables correctly:
    ```javascript
    // Pass all environment variables to the deployment script
    // The script will also load from /root/.env, but we pass process.env as backup
@@ -369,14 +383,14 @@ Container names follow format: `{project-name}-{service-name}-{number}`
    });
    ```
 
-2. **Update `Dockerfile`** to accept `ENV_SUFFIX` build arg:
+3. **Update `Dockerfile`** to accept `ENV_SUFFIX` build arg:
    ```dockerfile
    ARG GIT_COMMIT=unknown
    ARG ENV_SUFFIX=dev
    RUN sed -i "s/const SCRIPT_VERSION = '[^']*'/const SCRIPT_VERSION = '${GIT_COMMIT}-${ENV_SUFFIX}'/g" script.js
    ```
 
-3. **Update `deploy-prod-webhook.sh`** to pass `ENV_SUFFIX="prod"`:
+4. **Update `deploy-prod-webhook.sh`** to pass `ENV_SUFFIX="prod"` and use `PROJECT_DIR`:
    ```bash
    docker build \
      --no-cache \
@@ -385,13 +399,13 @@ Container names follow format: `{project-name}-{service-name}-{number}`
      --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
      --build-arg GIT_COMMIT="${COMMIT_HASH}" \
      --build-arg ENV_SUFFIX="prod" \
-     -f /app/Dockerfile \
+     -f "$PROJECT_DIR/Dockerfile" \
      -t "${IMAGE_NAME}" \
      -t laurens-list-laurenslist:latest \
-     /app
+     "$PROJECT_DIR"
    ```
 
-**Note**: These fixes are already included in the latest versions of `webhook-listener-prod.js`, `Dockerfile`, and `deploy-prod-webhook.sh`.
+**Note**: These fixes are already included in the latest versions of `webhook-listener-prod.js`, `Dockerfile`, and `deploy-prod-webhook.sh`. The script now works both when run manually on the host and when run via webhook in the container.
 
 ### Issue: Container rollback after restart
 
@@ -417,16 +431,16 @@ The deployment script now uses **unique image tags** (commit hash-based) instead
 
 **How It Works**:
 
-1. Deployment script gets current commit hash: `COMMIT_HASH=$(git rev-parse --short HEAD)`
-2. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
-3. Updates `docker-compose.yml` to use unique tag permanently:
-   - Updates both mounted volume (`/app/docker-compose.yml`) and host file (`/root/laurens-list/docker-compose.yml`)
-   - Verifies update succeeded with multiple checks
-   - Retries with more specific pattern if first attempt fails
-   - Exits with error if update fails (prevents deployment with wrong tag)
-4. Passes `GIT_COMMIT` and `ENV_SUFFIX="prod"` build args to Dockerfile
-5. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
-6. Final verification check before starting container to ensure unique tag is set
+1. Deployment script detects environment (container vs host) and uses correct paths
+2. Loads environment variables from `/root/.env` if running on host
+3. Gets current commit hash: `COMMIT_HASH=$(git rev-parse --short HEAD)`
+4. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
+5. Updates `docker-compose.yml` to use unique tag permanently (simple `sed` update, matching dev's approach)
+6. Passes `GIT_COMMIT` and `ENV_SUFFIX="prod"` build args to Dockerfile
+7. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
+8. Verifies container is using the new image before completing
+
+**Key Simplification**: The production deployment script now matches dev's proven working approach - simple `sed` update of `docker-compose.yml` without complex git protection logic. Dev works without git protection, so prod uses the same simple approach.
 
 **Verification**:
 
@@ -454,13 +468,12 @@ echo "Container SCRIPT_VERSION: ${CONTAINER_VERSION}"
 **Why This Prevents Rollbacks**:
 
 1. **Unique tags are immutable**: Once an image is tagged with `prod-c006ce1`, that tag always points to that specific image
-2. **docker-compose.yml is pinned**: The unique tag is stored permanently in both mounted volume and host file, so restarts always use the correct image
+2. **docker-compose.yml is pinned**: The unique tag is stored permanently in `docker-compose.yml`, so restarts always use the correct image
 3. **No `latest` tag confusion**: Docker Compose can't accidentally use an old `latest` image because `docker-compose.yml` doesn't reference `latest`
 4. **Build context verification**: Script checks if build context has latest code and forces hard reset if needed
 5. **SCRIPT_VERSION accuracy**: `SCRIPT_VERSION` is set during build using actual commit hash, not source code
-6. **Multiple verification checks**: Script verifies `docker-compose.yml` update succeeded before starting container
-7. **Exit on failure**: If `docker-compose.yml` update fails, deployment exits with error (prevents rollback)
-8. **Final verification**: Before starting container, script performs final check to ensure unique tag is set
+6. **Simple and proven**: Uses the same simple approach as dev, which has been working reliably
+7. **Image verification**: Script verifies container is using the correct image before completing
 
 **Prevention**:
 - The deployment script automatically uses unique tags and pins `docker-compose.yml`
@@ -521,19 +534,20 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener-p
 
 **Setup Time Estimate**: ~30-45 minutes (can copy most configuration from dev setup)
 
-**Last Updated**: November 7, 2025 - Includes fixes for deployment script path handling, environment variable passing, and comprehensive rollback prevention
+**Last Updated**: November 7, 2025 - Simplified to match dev's proven working approach
 
 **Production Setup Issues Resolved**:
-1. ✅ Fixed deployment script path handling (`/app` directory check)
+1. ✅ Fixed deployment script path handling (works both in container and on host)
 2. ✅ Fixed environment variable passing from webhook listener to deployment script
 3. ✅ Added `ENV_SUFFIX` build arg to Dockerfile for dev/prod distinction
 4. ✅ Implemented rollback prevention with unique image tags
 5. ✅ Added build context verification to ensure latest code is used
 6. ✅ Added `SCRIPT_VERSION` auto-update during Docker build
-7. ✅ Enhanced `docker-compose.yml` update persistence (updates both mounted volume and host file)
-8. ✅ Added multiple verification checks to ensure `docker-compose.yml` update succeeded
-9. ✅ Added exit-on-failure if `docker-compose.yml` update fails (prevents deployment with wrong tag)
-10. ✅ Added final verification check before starting container
+7. ✅ Simplified to match dev's working approach (removed complex git protection logic)
+8. ✅ Added environment variable loading for manual host execution
+9. ✅ Uses `PROJECT_DIR` variable for all paths (works in both environments)
 
-**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-41bae5a`). Container restarts confirmed to use pinned unique tag, not `latest`.
+**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+
+**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach.
 

@@ -328,18 +328,19 @@ The system includes automated deployment for both **dev** and **production** env
 **Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime. Rollback prevention verified and working.
 
 **Production Setup Issues Resolved** (November 7, 2025):
-- Fixed deployment script path handling (`/app` directory check with fallback)
+- Fixed deployment script path handling (works both in container and on host using `PROJECT_DIR` variable)
 - Fixed environment variable passing from webhook listener to deployment script (now passes all `process.env` variables correctly)
+- Added environment variable loading for manual host execution (loads from `/root/.env`)
 - Added `ENV_SUFFIX` build arg to Dockerfile for dev/prod distinction in `SCRIPT_VERSION`
 - Implemented rollback prevention with unique image tags and pinned `docker-compose.yml`
 - Added build context verification to ensure latest code is used
 - Added `SCRIPT_VERSION` auto-update during Docker build using `GIT_COMMIT` and `ENV_SUFFIX` build args
-- Enhanced `docker-compose.yml` update persistence (updates both mounted volume and host file)
-- Added multiple verification checks to ensure `docker-compose.yml` update succeeded
-- Added exit-on-failure if `docker-compose.yml` update fails (prevents deployment with wrong tag)
-- Added final verification check before starting container
+- **Simplified to match dev's proven working approach** (removed complex git protection logic)
+- Uses simple `sed` update of `docker-compose.yml` like dev (proven to work reliably)
 
-**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags. Container restarts confirmed to use pinned unique tag, not `latest`.
+**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+
+**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach.
 
 See `PRODUCTION_WEBHOOK_SETUP.md` for detailed troubleshooting of these issues.
 

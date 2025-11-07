@@ -703,12 +703,12 @@ All of these issues are now documented in this troubleshooting section.
 **Verified Working**: Dev webhook successfully deployed and tested. Production webhook also verified working on November 5, 2025. Deployment completes in ~6-10 seconds with zero downtime.
 
 **Note**: When setting up production webhook, see `PRODUCTION_WEBHOOK_SETUP.md` for additional troubleshooting specific to production, including:
-- Deployment script path handling (`/app` directory check)
+- Deployment script path handling (works both in container and on host)
+- Environment variable loading for manual host execution
 - Environment variable passing from webhook listener to deployment script
 - `ENV_SUFFIX` build arg for dev/prod distinction in `SCRIPT_VERSION`
-- Enhanced rollback prevention with multiple verification checks
-- `docker-compose.yml` update persistence (updates both mounted volume and host file)
-- Exit-on-failure behavior if `docker-compose.yml` update fails
+- Simplified rollback prevention (matches dev's proven working approach)
+- `PROJECT_DIR` variable for environment-agnostic paths
 
 ## Verifying Deployments
 
