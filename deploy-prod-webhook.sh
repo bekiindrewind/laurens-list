@@ -31,26 +31,8 @@ git checkout main
 echo "🔄 Stashing any local changes..."
 git stash || true
 
-# CRITICAL: Temporarily allow git to update docker-compose.yml during pull
-# We need to allow git pull to update the file, then we'll update it with unique tag
-# and protect it from future git pulls
-echo "🔓 Temporarily allowing git to update docker-compose.yml..."
-# Unprotect in container's git repo
-git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
-# Also unprotect on host (since /app is mounted from /root/laurens-list, they're the same file)
-# But we need to ensure we're in the right git context
-if [ -f "/root/laurens-list/docker-compose.yml" ]; then
-    cd /root/laurens-list 2>/dev/null || cd /app
-    git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
-    cd /app
-fi
-
 echo "⬇️  Pulling latest changes..."
 git pull origin main
-
-# IMPORTANT: After git pull, docker-compose.yml will have 'latest' tag
-# We'll update it AFTER building the image with the unique tag
-# Then we'll tell git to ignore changes to this file so it doesn't revert on next pull
 
 # Get the current commit hash for unique image tagging
 COMMIT_HASH=$(git rev-parse --short HEAD)
@@ -126,126 +108,18 @@ echo "▶️  Starting production container with unique image tag..."
 # Permanently update docker-compose.yml to use the unique image tag
 # This prevents Docker Compose from using a cached 'latest' reference when container restarts
 # We keep the unique tag in docker-compose.yml so restarts always use the correct image
-# CRITICAL: Update the HOST file first, then the mounted volume
-# Docker Compose reads from the host filesystem, not the container
-HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
-if [ -f "$HOST_COMPOSE_FILE" ]; then
-    echo "📝 Updating docker-compose.yml on HOST: $HOST_COMPOSE_FILE"
-    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$HOST_COMPOSE_FILE"
-    echo "✅ Updated docker-compose.yml on host"
-else
-    echo "⚠️  WARNING: Host docker-compose.yml not found at $HOST_COMPOSE_FILE"
-fi
-# Also update the mounted volume (for consistency)
+# Match dev's working approach - simple and effective
 sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
-echo "✅ Updated docker-compose.yml in mounted volume"
-# Verify the update worked
-UPDATED_TAG=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | grep -oP "image: \K[^ ]+" | head -1)
-if [ "$UPDATED_TAG" != "${IMAGE_NAME}" ]; then
-    echo "⚠️  WARNING: docker-compose.yml update may have failed!"
-    echo "   Expected: ${IMAGE_NAME}"
-    echo "   Found: ${UPDATED_TAG}"
-    echo "   Attempting manual update with more specific pattern..."
-    # Try a more aggressive update - match the exact line format
-    sed -i "s|\(image: \)laurens-list-laurenslist:.*|\1${IMAGE_NAME}|g" /app/docker-compose.yml
-    if [ -f "/root/laurens-list/docker-compose.yml" ]; then
-        sed -i "s|\(image: \)laurens-list-laurenslist:.*|\1${IMAGE_NAME}|g" /root/laurens-list/docker-compose.yml
-    fi
-    # Verify again
-    UPDATED_TAG=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | grep -oP "image: \K[^ ]+" | head -1)
-    if [ "$UPDATED_TAG" != "${IMAGE_NAME}" ]; then
-        echo "❌ ERROR: Failed to update docker-compose.yml after multiple attempts!"
-        echo "   This is critical for rollback prevention!"
-        echo "   Manual intervention required - update docker-compose.yml to use: ${IMAGE_NAME}"
-        exit 1
-    else
-        echo "✅ Successfully updated docker-compose.yml on second attempt"
-    fi
-else
-    echo "✅ Verified docker-compose.yml updated successfully to: ${IMAGE_NAME}"
-fi
-
-# CRITICAL: Use the HOST file path, not the container path
-# Docker Compose reads from the host filesystem, so we must use the host path
-# Also verify the file has the correct tag before starting
-HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
-if [ ! -f "$HOST_COMPOSE_FILE" ]; then
-    echo "❌ ERROR: Host docker-compose.yml not found at $HOST_COMPOSE_FILE"
-    exit 1
-fi
-
-# Verify the host file has the correct tag before starting
-HOST_TAG=$(grep "image: laurens-list-laurenslist:" "$HOST_COMPOSE_FILE" | grep -oP "image: \K[^ ]+" | head -1)
-if [ "$HOST_TAG" != "${IMAGE_NAME}" ]; then
-    echo "❌ CRITICAL: Host docker-compose.yml does NOT have the unique tag!"
-    echo "   Found: $HOST_TAG"
-    echo "   Expected: ${IMAGE_NAME}"
-    echo "   This will cause rollback! Updating now..."
-    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$HOST_COMPOSE_FILE"
-    # Verify again
-    HOST_TAG=$(grep "image: laurens-list-laurenslist:" "$HOST_COMPOSE_FILE" | grep -oP "image: \K[^ ]+" | head -1)
-    if [ "$HOST_TAG" != "${IMAGE_NAME}" ]; then
-        echo "❌ ERROR: Failed to update host docker-compose.yml!"
-        exit 1
-    fi
-    echo "✅ Host docker-compose.yml updated successfully"
-fi
 
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 # Use --pull never to ensure we use the image we just built (not a cached one)
-# CRITICAL: Use the HOST file path, not the container path
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$HOST_COMPOSE_FILE" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
 
 # DO NOT restore docker-compose.yml to use 'latest'
 # Keeping the unique tag ensures the container always uses the correct image, even after restarts
 echo "📝 docker-compose.yml now uses unique tag: ${IMAGE_NAME}"
-
-# Final verification: Check that docker-compose.yml has the correct tag
-FINAL_CHECK=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | head -1)
-echo "📋 Final docker-compose.yml image line: ${FINAL_CHECK}"
-if echo "$FINAL_CHECK" | grep -q "${IMAGE_NAME}"; then
-    echo "✅ docker-compose.yml correctly pinned to unique tag"
-    
-    # CRITICAL: Tell git to ignore changes to docker-compose.yml
-    # This prevents git pull from reverting our unique tag update
-    # This is essential for rollback prevention
-    echo "🔒 Locking docker-compose.yml to prevent git from reverting unique tag..."
-    git update-index --assume-unchanged docker-compose.yml
-    if [ $? -eq 0 ]; then
-        echo "✅ docker-compose.yml is now protected from git pull reverts"
-    else
-        echo "⚠️  WARNING: Failed to protect docker-compose.yml from git reverts"
-        echo "   This means git pull might revert the unique tag on next deployment!"
-    fi
-    
-    # CRITICAL: Protect the HOST file from git reverts
-    # Docker Compose reads from the host filesystem, so we must protect the host file
-    if [ -f "/root/laurens-list/docker-compose.yml" ]; then
-        echo "🔒 Protecting docker-compose.yml on HOST from git reverts..."
-        # Use docker exec to run git command on the host (since we're in a container)
-        # Or change directory to host path and run git command
-        # Since /app is mounted from /root/laurens-list, we can cd to /root/laurens-list
-        # But we need to ensure we're in the right git repository context
-        cd /root/laurens-list 2>/dev/null || cd /app
-        git update-index --assume-unchanged docker-compose.yml 2>/dev/null || {
-            echo "⚠️  WARNING: Failed to protect docker-compose.yml on host"
-            echo "   Trying alternative method..."
-            # Try using the mounted volume path
-            cd /app
-            git update-index --assume-unchanged docker-compose.yml 2>/dev/null || true
-        }
-        cd /app
-        echo "✅ docker-compose.yml protected on host"
-    fi
-else
-    echo "❌ CRITICAL: docker-compose.yml does NOT have the unique tag!"
-    echo "   This will cause rollbacks on container restart!"
-    echo "   Current line: ${FINAL_CHECK}"
-    echo "   Expected: image: ${IMAGE_NAME}"
-    echo "   Deployment will continue, but rollback protection is compromised!"
-fi
 
 echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
