@@ -32,6 +32,16 @@ else
     fi
 fi
 
+# Load environment variables if running on host (from /root/.env)
+# When running in container, env vars are passed via process.env
+if [ ! -d "/app" ] && [ -f "/root/.env" ]; then
+    echo "📝 Loading environment variables from /root/.env..."
+    set -a  # Automatically export all variables
+    source /root/.env
+    set +a  # Stop automatically exporting
+    echo "✅ Environment variables loaded"
+fi
+
 echo "📥 Fetching latest changes from GitHub..."
 git fetch origin
 
