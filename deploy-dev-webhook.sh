@@ -10,15 +10,6 @@ echo "📅 $(date)"
 # Navigate to project directory (mounted volume)
 cd /app
 
-# Configure Git credentials for private repository
-# Use GitHub token from environment variable if available
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "🔐 Configuring Git credentials for private repository..."
-    git config --global credential.helper store
-    echo "https://${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-    chmod 600 ~/.git-credentials
-fi
-
 echo "📥 Fetching latest changes from GitHub..."
 git fetch origin
 
