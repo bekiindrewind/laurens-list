@@ -22,10 +22,11 @@ ARG DOESTHEDOGDIE_API_KEY=YOUR_DTDD_API_KEY
 # Use word boundaries and line-specific patterns to avoid replacing check comparisons
 # Also update SCRIPT_VERSION with the commit hash from build arg
 ARG GIT_COMMIT=unknown
+ARG ENV_SUFFIX=dev
 RUN sed -i "s/\\(let TMDB_API_KEY = \\)'YOUR_TMDB_API_KEY'/\\1'${TMDB_API_KEY}'/g" script.js && \
     sed -i "s/\\(let GOOGLE_BOOKS_API_KEY = \\)'YOUR_GOOGLE_BOOKS_API_KEY'/\\1'${GOOGLE_BOOKS_API_KEY}'/g" script.js && \
     sed -i "s/\\(let DOESTHEDOGDIE_API_KEY = \\)'YOUR_DTDD_API_KEY'/\\1'${DOESTHEDOGDIE_API_KEY}'/g" script.js && \
-    sed -i "s/const SCRIPT_VERSION = '[^']*'/const SCRIPT_VERSION = '${GIT_COMMIT}-dev'/g" script.js
+    sed -i "s/const SCRIPT_VERSION = '[^']*'/const SCRIPT_VERSION = '${GIT_COMMIT}-${ENV_SUFFIX}'/g" script.js
 
 # Expose port 8080
 EXPOSE 8080
