@@ -327,6 +327,16 @@ The system includes automated deployment for both **dev** and **production** env
 
 **Verified Working**: Production webhook successfully deployed and tested on November 5, 2025. Deployment completes in ~6 seconds with zero downtime. Rollback prevention verified and working.
 
+**Production Setup Issues Resolved** (November 7, 2025):
+- Fixed deployment script path handling (`/app` directory check with fallback)
+- Fixed environment variable passing from webhook listener to deployment script (now passes all `process.env` variables correctly)
+- Added `ENV_SUFFIX` build arg to Dockerfile for dev/prod distinction in `SCRIPT_VERSION`
+- Implemented rollback prevention with unique image tags and pinned `docker-compose.yml`
+- Added build context verification to ensure latest code is used
+- Added `SCRIPT_VERSION` auto-update during Docker build using `GIT_COMMIT` and `ENV_SUFFIX` build args
+
+See `PRODUCTION_WEBHOOK_SETUP.md` for detailed troubleshooting of these issues.
+
 **Setup Time**:
 - Initial setup: ~1-2 hours (includes troubleshooting)
 - Subsequent setups: ~30-45 minutes (can copy configuration)

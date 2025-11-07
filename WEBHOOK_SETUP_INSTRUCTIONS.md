@@ -702,6 +702,11 @@ All of these issues are now documented in this troubleshooting section.
 
 **Verified Working**: Dev webhook successfully deployed and tested. Production webhook also verified working on November 5, 2025. Deployment completes in ~6-10 seconds with zero downtime.
 
+**Note**: When setting up production webhook, see `PRODUCTION_WEBHOOK_SETUP.md` for additional troubleshooting specific to production, including:
+- Deployment script path handling (`/app` directory check)
+- Environment variable passing from webhook listener to deployment script
+- `ENV_SUFFIX` build arg for dev/prod distinction in `SCRIPT_VERSION`
+
 ## Verifying Deployments
 
 ### Check Version Number

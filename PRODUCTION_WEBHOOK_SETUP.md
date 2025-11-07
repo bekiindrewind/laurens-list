@@ -292,6 +292,107 @@ Container names follow format: `{project-name}-{service-name}-{number}`
 
 **Note**: The deployment script already includes these fixes. If you encounter this error, ensure the latest version of `deploy-prod-webhook.sh` is on the server.
 
+### Issue: Deployment script fails with "cd: /app: No such file or directory"
+
+**Symptom**: 
+- Webhook receives push event successfully
+- Deployment script starts but fails immediately
+- Error: `deploy-prod-webhook.sh: line 11: cd: /app: No such file or directory`
+
+**Cause**: 
+- The deployment script assumes `/app` directory exists
+- When running from certain contexts, `/app` might not be available
+- The script doesn't handle missing directory gracefully
+
+**Solution**:
+1. **Update `deploy-prod-webhook.sh`** to check if `/app` exists before using it:
+   ```bash
+   # Navigate to project directory (mounted volume)
+   # Check if /app exists, otherwise use current directory
+   if [ -d "/app" ]; then
+       cd /app
+   else
+       echo "⚠️  /app not found, using current directory: $(pwd)"
+       # Try to find the project directory
+       if [ -f "deploy-prod-webhook.sh" ]; then
+           echo "✅ Found deploy-prod-webhook.sh in current directory"
+       else
+           echo "❌ ERROR: Cannot find project directory!"
+           exit 1
+       fi
+   fi
+   ```
+
+2. **Ensure webhook listener sets `cwd: '/app'`** when executing the script:
+   ```javascript
+   exec(`bash ${deployScript}`, {
+       cwd: '/app',
+       env: process.env,
+       maxBuffer: 1024 * 1024 * 10
+   }, ...);
+   ```
+
+**Note**: This fix is already included in the latest version of `deploy-prod-webhook.sh`.
+
+### Issue: Environment variables not passed to deployment script
+
+**Symptom**:
+- Webhook triggers deployment successfully
+- Docker build fails with empty API keys
+- Error: `SCRIPT_VERSION` shows `unknown-dev` instead of commit hash with `-prod` suffix
+- Build args (`GIT_COMMIT`, `ENV_SUFFIX`) are not being passed correctly
+
+**Cause**:
+- Webhook listener was using `env: { ...process.env, PATH: process.env.PATH }` which doesn't properly spread all environment variables
+- Missing `maxBuffer` causes large output to be truncated
+- Environment variables from `env_file` in `docker-compose.yml` weren't being passed to the deployment script
+
+**Solution**:
+1. **Update `webhook-listener-prod.js`** to pass all environment variables correctly:
+   ```javascript
+   // Pass all environment variables to the deployment script
+   // The script will also load from /root/.env, but we pass process.env as backup
+   exec(`bash ${deployScript}`, {
+       cwd: '/app',
+       env: process.env,  // Pass all environment variables (including from env_file)
+       maxBuffer: 1024 * 1024 * 10  // 10MB buffer for large output
+   }, (error, stdout, stderr) => {
+       if (error) {
+           console.error('❌ Production deployment error:', error);
+           console.error('Error details:', error.message);
+           console.error('Error code:', error.code);
+           console.error('STDERR:', stderr);
+           console.error('STDOUT (first 1000 chars):', stdout?.substring(0, 1000));
+           return;
+       }
+       // ... rest of error handling
+   });
+   ```
+
+2. **Update `Dockerfile`** to accept `ENV_SUFFIX` build arg:
+   ```dockerfile
+   ARG GIT_COMMIT=unknown
+   ARG ENV_SUFFIX=dev
+   RUN sed -i "s/const SCRIPT_VERSION = '[^']*'/const SCRIPT_VERSION = '${GIT_COMMIT}-${ENV_SUFFIX}'/g" script.js
+   ```
+
+3. **Update `deploy-prod-webhook.sh`** to pass `ENV_SUFFIX="prod"`:
+   ```bash
+   docker build \
+     --no-cache \
+     --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
+     --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
+     --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
+     --build-arg GIT_COMMIT="${COMMIT_HASH}" \
+     --build-arg ENV_SUFFIX="prod" \
+     -f /app/Dockerfile \
+     -t "${IMAGE_NAME}" \
+     -t laurens-list-laurenslist:latest \
+     /app
+   ```
+
+**Note**: These fixes are already included in the latest versions of `webhook-listener-prod.js`, `Dockerfile`, and `deploy-prod-webhook.sh`.
+
 ### Issue: Container rollback after restart
 
 **Symptom**:
@@ -412,5 +513,13 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener-p
 
 **Setup Time Estimate**: ~30-45 minutes (can copy most configuration from dev setup)
 
-**Last Updated**: Based on working dev webhook implementation
+**Last Updated**: November 7, 2025 - Includes fixes for deployment script path handling, environment variable passing, and rollback prevention
+
+**Production Setup Issues Resolved**:
+1. ✅ Fixed deployment script path handling (`/app` directory check)
+2. ✅ Fixed environment variable passing from webhook listener to deployment script
+3. ✅ Added `ENV_SUFFIX` build arg to Dockerfile for dev/prod distinction
+4. ✅ Implemented rollback prevention with unique image tags
+5. ✅ Added build context verification to ensure latest code is used
+6. ✅ Added `SCRIPT_VERSION` auto-update during Docker build
 
