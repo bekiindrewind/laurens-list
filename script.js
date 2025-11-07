@@ -2232,18 +2232,22 @@ class LaurensList {
                                     const pageData = pages[pageId];
                                     if (pageData.extract) {
                                         console.log(`  📚 Full extract available: ${pageData.extract.length} chars (summary: ${directData.extract.length} chars)`);
+                                        console.log(`  📄 Full extract preview (first 500 chars): ${pageData.extract.substring(0, 500)}`);
                                         // Always use the full extract if it's longer, even if only slightly
                                         if (pageData.extract.length > directData.extract.length) {
                                             console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
                                             fullExtract = pageData.extract;
                                         } else {
                                             console.log(`  ⚠️ Full extract (${pageData.extract.length} chars) is not longer than summary (${directData.extract.length} chars), using summary`);
+                                            console.log(`  ⚠️ This might mean Wikipedia truncated the extract or the article is short`);
                                         }
                                     } else {
                                         console.log(`  ⚠️ No extract found in full extract response`);
+                                        console.log(`  📊 Full extract response:`, fullExtractData);
                                     }
                                 } else {
                                     console.log(`  ⚠️ No pages found in full extract response`);
+                                    console.log(`  📊 Full extract response:`, fullExtractData);
                                 }
                             } else {
                                 console.log(`  ⚠️ Full extract fetch failed with status: ${fullExtractResponse.status}`);
