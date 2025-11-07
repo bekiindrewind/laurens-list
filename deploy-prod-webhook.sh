@@ -51,8 +51,12 @@ git checkout main
 echo "🔄 Stashing any local changes..."
 git stash || true
 
-echo "⬇️  Pulling latest changes..."
-git pull origin main
+# CRITICAL: Always do hard reset to ensure we have absolute latest code from main
+# git pull can fail or not fully sync if there are conflicts or if server was on different branch
+# Hard reset guarantees we have the exact state of origin/main
+echo "🔄 Ensuring build context has absolute latest code from main..."
+git reset --hard origin/main
+echo "✅ Hard reset complete - build context guaranteed to have latest code from main"
 
 # Get the current commit hash for unique image tagging
 COMMIT_HASH=$(git rev-parse --short HEAD)
@@ -60,11 +64,12 @@ IMAGE_TAG="prod-${COMMIT_HASH}"
 IMAGE_NAME="laurens-list-laurenslist:${IMAGE_TAG}"
 echo "📦 Building image with unique tag: ${IMAGE_NAME}"
 
-# CRITICAL: Update docker-compose.yml IMMEDIATELY after git pull
+# CRITICAL: Update docker-compose.yml IMMEDIATELY after git reset --hard
+# git reset --hard reverts docker-compose.yml, so we MUST update it right after
 # This ensures the unique tag is set before any container operations
 # We update it now (before build) so it's ready when we start the container
 # This prevents Docker Compose from using 'latest' tag on restart
-echo "📝 Updating docker-compose.yml with unique image tag (before build)..."
+echo "📝 Updating docker-compose.yml with unique image tag (after git reset --hard)..."
 # Always use /app path (mounted volume) - this is what Docker Compose reads
 # Even if running on host, we need to update the file that Docker Compose will read
 COMPOSE_FILE="/app/docker-compose.yml"
@@ -74,25 +79,6 @@ if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; t
 fi
 sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
 echo "✅ docker-compose.yml updated with unique tag: ${IMAGE_NAME}"
-
-# Verify we have the latest code by checking script.js SCRIPT_VERSION
-# This ensures the build context has the latest files
-echo "🔍 Verifying build context has latest code..."
-EXPECTED_VERSION="${COMMIT_HASH}-prod"
-ACTUAL_VERSION=$(grep -oP "const SCRIPT_VERSION = '\K[^']+" "$PROJECT_DIR/script.js" 2>/dev/null || echo "")
-if [ -n "$ACTUAL_VERSION" ] && [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
-    echo "⚠️  WARNING: script.js has SCRIPT_VERSION='$ACTUAL_VERSION' but current commit is '$COMMIT_HASH'"
-    echo "   This means the build context might have old code!"
-    echo "   Forcing hard reset to ensure we have latest code..."
-    git fetch origin
-    git reset --hard origin/main
-    echo "✅ Hard reset complete - build context should now have latest code"
-    # CRITICAL: Re-apply the unique tag after git reset --hard
-    # git reset --hard reverts docker-compose.yml, so we must update it again
-    echo "📝 Re-updating docker-compose.yml after git reset --hard..."
-    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
-    echo "✅ docker-compose.yml re-updated with unique tag: ${IMAGE_NAME}"
-fi
 
 echo "🛑 Stopping and removing production container..."
 # Stop and remove the container to avoid build context validation issues
