@@ -34,6 +34,10 @@ git stash || true
 echo "⬇️  Pulling latest changes..."
 git pull origin main
 
+# IMPORTANT: After git pull, docker-compose.yml will have 'latest' tag
+# We'll update it AFTER building the image with the unique tag
+# This ensures the file persists even if git tries to revert it
+
 # Get the current commit hash for unique image tagging
 COMMIT_HASH=$(git rev-parse --short HEAD)
 IMAGE_TAG="prod-${COMMIT_HASH}"
@@ -108,7 +112,38 @@ echo "▶️  Starting production container with unique image tag..."
 # Permanently update docker-compose.yml to use the unique image tag
 # This prevents Docker Compose from using a cached 'latest' reference when container restarts
 # We keep the unique tag in docker-compose.yml so restarts always use the correct image
+# Update BOTH the mounted volume (/app) and the host file (/root/laurens-list) to ensure persistence
 sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
+# Also update the host file directly (in case the mount point is different)
+if [ -f "/root/laurens-list/docker-compose.yml" ]; then
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /root/laurens-list/docker-compose.yml
+    echo "✅ Updated docker-compose.yml on host: /root/laurens-list/docker-compose.yml"
+fi
+# Verify the update worked
+UPDATED_TAG=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | grep -oP "image: \K[^ ]+" | head -1)
+if [ "$UPDATED_TAG" != "${IMAGE_NAME}" ]; then
+    echo "⚠️  WARNING: docker-compose.yml update may have failed!"
+    echo "   Expected: ${IMAGE_NAME}"
+    echo "   Found: ${UPDATED_TAG}"
+    echo "   Attempting manual update with more specific pattern..."
+    # Try a more aggressive update - match the exact line format
+    sed -i "s|\(image: \)laurens-list-laurenslist:.*|\1${IMAGE_NAME}|g" /app/docker-compose.yml
+    if [ -f "/root/laurens-list/docker-compose.yml" ]; then
+        sed -i "s|\(image: \)laurens-list-laurenslist:.*|\1${IMAGE_NAME}|g" /root/laurens-list/docker-compose.yml
+    fi
+    # Verify again
+    UPDATED_TAG=$(grep "image: laurens-list-laurenslist:" /app/docker-compose.yml | grep -oP "image: \K[^ ]+" | head -1)
+    if [ "$UPDATED_TAG" != "${IMAGE_NAME}" ]; then
+        echo "❌ ERROR: Failed to update docker-compose.yml after multiple attempts!"
+        echo "   This is critical for rollback prevention!"
+        echo "   Manual intervention required - update docker-compose.yml to use: ${IMAGE_NAME}"
+        exit 1
+    else
+        echo "✅ Successfully updated docker-compose.yml on second attempt"
+    fi
+else
+    echo "✅ Verified docker-compose.yml updated successfully to: ${IMAGE_NAME}"
+fi
 
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
