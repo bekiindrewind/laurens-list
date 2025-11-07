@@ -188,6 +188,15 @@ fi
 echo "⏳ Waiting for container to start..."
 sleep 3
 
+echo "🔄 Restarting Traefik to ensure it picks up the new container..."
+# Traefik should auto-discover containers, but restarting ensures it picks up changes
+# This is especially important if Traefik was having routing issues
+docker compose -f "$COMPOSE_FILE" -p laurens-list restart traefik || true
+echo "✅ Traefik restarted"
+
+echo "⏳ Waiting for Traefik to re-discover services..."
+sleep 5
+
 echo "📋 Checking container logs..."
 CONTAINER_NAME=$(docker ps --format "{{.Names}}" | grep laurenslist | grep -v "dev" | head -1)
 if [ -n "$CONTAINER_NAME" ]; then
