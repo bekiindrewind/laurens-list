@@ -78,10 +78,21 @@ if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; t
     COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
 fi
 sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
-echo "✅ docker-compose.yml updated with unique tag: ${IMAGE_NAME}"
+# Verify the update worked
+if grep -q "${IMAGE_NAME}" "$COMPOSE_FILE"; then
+    echo "✅ docker-compose.yml updated with unique tag: ${IMAGE_NAME}"
+else
+    echo "❌ ERROR: Failed to update docker-compose.yml with unique tag!"
+    echo "   File: $COMPOSE_FILE"
+    echo "   Expected: ${IMAGE_NAME}"
+    echo "   Actual content:"
+    grep "image: laurens-list-laurenslist" "$COMPOSE_FILE" || echo "   (not found)"
+    exit 1
+fi
 
 echo "🛑 Stopping and removing production container..."
-# Stop and remove the container to avoid build context validation issues
+# Use 'docker compose down' to force complete removal and config reload
+# This ensures Docker Compose reads the updated docker-compose.yml
 # Set project name explicitly to match the image name (laurens-list)
 # Always use /app path (mounted volume) - this is what Docker Compose reads
 COMPOSE_FILE="/app/docker-compose.yml"
@@ -89,13 +100,17 @@ if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; t
     # Running on host - use host path
     COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
 fi
-docker compose -f "$COMPOSE_FILE" -p laurens-list stop laurenslist || true
+# Use 'down' instead of 'stop' and 'rm' to force complete removal
+docker compose -f "$COMPOSE_FILE" -p laurens-list down laurenslist || true
+# Also explicitly remove the container if it still exists
 docker compose -f "$COMPOSE_FILE" -p laurens-list rm -f laurenslist || true
 
 echo "🗑️  Removing old cached images..."
 # Remove ALL images with the prod tag pattern to prevent rollbacks
 # This ensures Docker Compose can't use an old image when container restarts
 docker images --format "{{.Repository}}:{{.Tag}}" | grep "laurens-list-laurenslist" | grep -v "dev" | xargs -r docker rmi 2>/dev/null || true
+# CRITICAL: Also remove 'latest' tag if it exists - we don't use it anymore
+docker rmi laurens-list-laurenslist:latest 2>/dev/null || true
 # Remove any dangling images
 docker images --filter "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
 # Force remove any containers using old images
@@ -116,7 +131,9 @@ if [ -z "$TMDB_API_KEY" ] || [ -z "$GOOGLE_BOOKS_API_KEY" ] || [ -z "$DOESTHEDOG
     echo "   This will cause the build to fail or use empty API keys!"
 fi
 
-echo "🔨 Building Docker image with unique tag..."
+echo "🔨 Building Docker image with unique tag ONLY (no 'latest' tag)..."
+# CRITICAL: Do NOT create 'latest' tag - only use unique tag
+# This prevents Docker Compose from accidentally using an old 'latest' image
 docker build \
   --no-cache \
   --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
@@ -126,11 +143,12 @@ docker build \
   --build-arg ENV_SUFFIX="prod" \
   -f "$PROJECT_DIR/Dockerfile" \
   -t "${IMAGE_NAME}" \
-  -t laurens-list-laurenslist:latest \
   "$PROJECT_DIR"
 
 if [ $? -eq 0 ]; then
     echo "✅ Docker build completed successfully"
+    # CRITICAL: Remove 'latest' tag if it was created (shouldn't be, but just in case)
+    docker rmi laurens-list-laurenslist:latest 2>/dev/null || true
 else
     echo "❌ Docker build failed!"
     exit 1
@@ -149,6 +167,19 @@ if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; t
     # Running on host - use host path
     COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
 fi
+# CRITICAL: Verify docker-compose.yml still has the unique tag before starting container
+# This prevents Docker Compose from using 'latest' if the file was reverted
+if ! grep -q "${IMAGE_NAME}" "$COMPOSE_FILE"; then
+    echo "❌ ERROR: docker-compose.yml was reverted! Expected unique tag: ${IMAGE_NAME}"
+    echo "   Re-applying unique tag..."
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
+    if ! grep -q "${IMAGE_NAME}" "$COMPOSE_FILE"; then
+        echo "❌ FATAL: Failed to update docker-compose.yml with unique tag!"
+        exit 1
+    fi
+    echo "✅ docker-compose.yml re-updated with unique tag"
+fi
+
 COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$COMPOSE_FILE" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
 
 # DO NOT restore docker-compose.yml to use 'latest'

@@ -209,6 +209,23 @@ app.get(/^(?!\/api)(?!.*\.(png|ico|jpg|jpeg|gif|svg|css|js|webmanifest|json|txt|
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// CRITICAL: Add error handlers to prevent crashes that cause container restarts
+// If the app crashes, Docker's 'restart: always' policy will restart it
+// If docker-compose.yml was reverted to use 'latest' tag, it would use an old image
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    console.error('Stack:', error.stack);
+    // Don't exit - keep the server running
+    // This prevents Docker from restarting the container
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('Reason:', reason);
+    // Don't exit - keep the server running
+    // This prevents Docker from restarting the container
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Lauren's List server running on port ${PORT}`);
