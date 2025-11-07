@@ -57,6 +57,12 @@ echo "🛑 Stopping and removing production container..."
 docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist || true
 docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist || true
 
+# CRITICAL: Remove any old containers with conflicting Traefik labels
+# This prevents Traefik from routing to old containers
+echo "🗑️  Removing any old containers with conflicting Traefik labels..."
+docker ps -a --format "{{.Names}}" | grep -E "root-laurenslist|laurenslist" | grep -v "laurens-list-laurenslist" | grep -v "dev" | xargs -r docker stop 2>/dev/null || true
+docker ps -a --format "{{.Names}}" | grep -E "root-laurenslist|laurenslist" | grep -v "laurens-list-laurenslist" | grep -v "dev" | xargs -r docker rm -f 2>/dev/null || true
+
 echo "🗑️  Removing old cached images..."
 # Remove ALL images with the prod tag pattern to prevent rollbacks
 # This ensures Docker Compose can't use an old image when container restarts
