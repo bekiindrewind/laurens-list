@@ -156,7 +156,6 @@ const CANCER_THEMED_CONTENT = {
         'johnny', 'josée', 'a journey', 'keith', 'killer nun',
         'knockin\' on heaven\'s door', 'language lessons', 'the last song',
         'let me eat your pancreas', 'life is beautiful', 'like a star shining in the night',
-        'my oxford year',
         'a little red flower', 'live is life', 'look both ways', 'love cuts',
         'love is all you need', 'love or something like that', 'ma ma', 'mad women',
         'maidaan', 'maktub', 'manang biring', 'the marching band', 'matching jack',
@@ -1912,6 +1911,7 @@ class LaurensList {
             const queryLower = normalizedQuery.toLowerCase();
             
             // Try each search query
+            let foundMatch = false;
             for (const searchQuery of searchQueries) {
                 const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=5&origin=*`;
                 console.log(`  🔍 Searching Wikipedia for movie: "${searchQuery}"`);
@@ -2035,6 +2035,7 @@ class LaurensList {
                                     
                                     if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
+                                        foundMatch = true;
                                         return {
                                             title: summaryData.title,
                                             description: summaryData.description || 'Unknown',
@@ -2154,6 +2155,7 @@ class LaurensList {
                                     
                                     if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
+                                        foundMatch = true;
                                         return {
                                             title: summaryData.title,
                                             description: summaryData.description || 'Unknown',
@@ -2178,186 +2180,189 @@ class LaurensList {
             
             // If search didn't find it, try direct page fetch as fallback
             // This handles cases where the page exists but search doesn't return it
-            console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
-            // Wikipedia page titles use underscores, not spaces or URL encoding
-            const wikipediaTitle = query.replace(/\s+/g, '_');
-            // Try summary first (short extract)
-            const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
-            console.log(`  🔗 Direct page URL: ${directPageUrl}`);
-            
-            // Also prepare URL for full extract (longer content)
-            // Use exchars to get more content (up to 5000 characters)
-            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
-            console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
-            
-            try {
-                const directResponse = await fetch(directPageUrl);
-                if (directResponse.ok) {
-                    const directData = await directResponse.json();
-                    console.log(`  📊 Direct page fetch result:`, directData);
-                    
-                    // Check if this looks like a film page
-                    const extractLower = (directData.extract || '').toLowerCase();
-                    const descLower = (directData.description || '').toLowerCase();
-                    const titleLower = (directData.title || '').toLowerCase();
-                    const fullExtract = extractLower;
-                    
-                    const hasFilmInTitle = titleLower.includes('(film)');
-                    const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
-                    const extractContainsFilm = fullExtract.includes('film') || fullExtract.includes('movie');
-                    
-                    const hasPlotIndicators = fullExtract.includes('starring') || 
-                                             fullExtract.includes('directed by') ||
-                                             fullExtract.includes('cast') ||
-                                             fullExtract.includes('character') ||
-                                             fullExtract.includes('plot') ||
-                                             fullExtract.includes('story');
-                    
-                    const isLikelyFilmPage = hasFilmInTitle || 
-                                            hasFilmInDescription ||
-                                            extractContainsFilm ||
-                                            (hasPlotIndicators && !descLower.includes('book') && !descLower.includes('novel'));
-                    
-                    const looksLikePerson = descLower && (
-                        descLower.includes(' is an actor') || 
-                        descLower.includes(' is a actor') ||
-                        descLower.includes(' is an actress') ||
-                        descLower.includes(' is a actress') ||
-                        (descLower.includes('born') && descLower.includes('actor')) ||
-                        (descLower.includes('born') && descLower.includes('actress'))
-                    );
-                    
-                    const looksLikeBook = descLower && (
-                        descLower.includes(' is a book') ||
-                        descLower.includes(' is a novel') ||
-                        (descLower.includes('written by') && !fullExtract.includes('film') && !fullExtract.includes('movie'))
-                    );
-                    
-                    if (directData.extract && directData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
-                        console.log(`  🎬 Wikipedia found movie via direct fetch: ${directData.title}`);
+            // Only try direct fetch if we haven't found a match yet
+            if (!foundMatch) {
+                console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
+                // Wikipedia page titles use underscores, not spaces or URL encoding
+                const wikipediaTitle = query.replace(/\s+/g, '_');
+                // Try summary first (short extract)
+                const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
+                console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+                
+                // Also prepare URL for full extract (longer content)
+                // Use exchars to get more content (up to 5000 characters)
+                const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
+                console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
+                
+                try {
+                    const directResponse = await fetch(directPageUrl);
+                    if (directResponse.ok) {
+                        const directData = await directResponse.json();
+                        console.log(`  📊 Direct page fetch result:`, directData);
                         
-                        // Try to get full extract for more content (summary is only ~300 chars)
-                        let fullExtract = directData.extract;
-                        try {
-                            const fullExtractResponse = await fetch(fullExtractUrl);
-                            if (fullExtractResponse.ok) {
-                                const fullExtractData = await fullExtractResponse.json();
-                                const pages = fullExtractData.query?.pages;
-                                if (pages) {
-                                    const pageId = Object.keys(pages)[0];
-                                    const pageData = pages[pageId];
-                                    if (pageData.extract) {
-                                        console.log(`  📚 Full extract available: ${pageData.extract.length} chars (summary: ${directData.extract.length} chars)`);
-                                        console.log(`  📄 Full extract preview (first 500 chars): ${pageData.extract.substring(0, 500)}`);
-                                        // Always use the full extract if it's longer, even if only slightly
-                                        if (pageData.extract.length > directData.extract.length) {
-                                            console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
-                                            fullExtract = pageData.extract;
+                        // Check if this looks like a film page
+                        const extractLower = (directData.extract || '').toLowerCase();
+                        const descLower = (directData.description || '').toLowerCase();
+                        const titleLower = (directData.title || '').toLowerCase();
+                        const fullExtract = extractLower;
+                        
+                        const hasFilmInTitle = titleLower.includes('(film)');
+                        const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
+                        const extractContainsFilm = fullExtract.includes('film') || fullExtract.includes('movie');
+                        
+                        const hasPlotIndicators = fullExtract.includes('starring') || 
+                                                 fullExtract.includes('directed by') ||
+                                                 fullExtract.includes('cast') ||
+                                                 fullExtract.includes('character') ||
+                                                 fullExtract.includes('plot') ||
+                                                 fullExtract.includes('story');
+                        
+                        const isLikelyFilmPage = hasFilmInTitle || 
+                                                hasFilmInDescription ||
+                                                extractContainsFilm ||
+                                                (hasPlotIndicators && !descLower.includes('book') && !descLower.includes('novel'));
+                        
+                        const looksLikePerson = descLower && (
+                            descLower.includes(' is an actor') || 
+                            descLower.includes(' is a actor') ||
+                            descLower.includes(' is an actress') ||
+                            descLower.includes(' is a actress') ||
+                            (descLower.includes('born') && descLower.includes('actor')) ||
+                            (descLower.includes('born') && descLower.includes('actress'))
+                        );
+                        
+                        const looksLikeBook = descLower && (
+                            descLower.includes(' is a book') ||
+                            descLower.includes(' is a novel') ||
+                            (descLower.includes('written by') && !fullExtract.includes('film') && !fullExtract.includes('movie'))
+                        );
+                        
+                        if (directData.extract && directData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
+                            console.log(`  🎬 Wikipedia found movie via direct fetch: ${directData.title}`);
+                            
+                            // Try to get full extract for more content (summary is only ~300 chars)
+                            let fullExtract = directData.extract;
+                            try {
+                                const fullExtractResponse = await fetch(fullExtractUrl);
+                                if (fullExtractResponse.ok) {
+                                    const fullExtractData = await fullExtractResponse.json();
+                                    const pages = fullExtractData.query?.pages;
+                                    if (pages) {
+                                        const pageId = Object.keys(pages)[0];
+                                        const pageData = pages[pageId];
+                                        if (pageData.extract) {
+                                            console.log(`  📚 Full extract available: ${pageData.extract.length} chars (summary: ${directData.extract.length} chars)`);
+                                            console.log(`  📄 Full extract preview (first 500 chars): ${pageData.extract.substring(0, 500)}`);
+                                            // Always use the full extract if it's longer, even if only slightly
+                                            if (pageData.extract.length > directData.extract.length) {
+                                                console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
+                                                fullExtract = pageData.extract;
+                                            } else {
+                                                console.log(`  ⚠️ Full extract (${pageData.extract.length} chars) is not longer than summary (${directData.extract.length} chars), using summary`);
+                                                console.log(`  ⚠️ This might mean Wikipedia truncated the extract or the article is short`);
+                                            }
                                         } else {
-                                            console.log(`  ⚠️ Full extract (${pageData.extract.length} chars) is not longer than summary (${directData.extract.length} chars), using summary`);
-                                            console.log(`  ⚠️ This might mean Wikipedia truncated the extract or the article is short`);
+                                            console.log(`  ⚠️ No extract found in full extract response`);
+                                            console.log(`  📊 Full extract response:`, fullExtractData);
                                         }
                                     } else {
-                                        console.log(`  ⚠️ No extract found in full extract response`);
+                                        console.log(`  ⚠️ No pages found in full extract response`);
                                         console.log(`  📊 Full extract response:`, fullExtractData);
                                     }
                                 } else {
-                                    console.log(`  ⚠️ No pages found in full extract response`);
-                                    console.log(`  📊 Full extract response:`, fullExtractData);
+                                    console.log(`  ⚠️ Full extract fetch failed with status: ${fullExtractResponse.status}`);
                                 }
-                            } else {
-                                console.log(`  ⚠️ Full extract fetch failed with status: ${fullExtractResponse.status}`);
+                            } catch (fullExtractError) {
+                                console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
                             }
-                        } catch (fullExtractError) {
-                            console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
-                        }
-                        
-                        // Try to get the Plot section specifically from HTML
-                        // This is important because the extract might not include the full Plot section
-                        try {
-                            console.log(`  📖 Attempting to fetch Plot section from HTML...`);
-                            const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${wikipediaTitle}`;
-                            const htmlResponse = await fetch(htmlUrl);
-                            if (htmlResponse.ok) {
-                                const htmlText = await htmlResponse.text();
-                                console.log(`  📄 HTML page fetched: ${htmlText.length} chars`);
-                                
-                                // Try to extract the Plot section from HTML
-                                // Look for <h2>Plot</h2> or <h2 id="Plot"> or similar
-                                const plotSectionRegex = /<h2[^>]*>[\s]*Plot[\s]*<\/h2>[\s\S]*?(?=<h2|<div class="mw-parser-output">|$)/i;
-                                const plotMatch = htmlText.match(plotSectionRegex);
-                                
-                                if (plotMatch) {
-                                    // Extract text from HTML (remove tags)
-                                    let plotText = plotMatch[0];
-                                    // Remove HTML tags but keep text
-                                    plotText = plotText.replace(/<[^>]+>/g, ' ');
-                                    // Clean up whitespace
-                                    plotText = plotText.replace(/\s+/g, ' ').trim();
+                            
+                            // Try to get the Plot section specifically from HTML
+                            // This is important because the extract might not include the full Plot section
+                            try {
+                                console.log(`  📖 Attempting to fetch Plot section from HTML...`);
+                                const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${wikipediaTitle}`;
+                                const htmlResponse = await fetch(htmlUrl);
+                                if (htmlResponse.ok) {
+                                    const htmlText = await htmlResponse.text();
+                                    console.log(`  📄 HTML page fetched: ${htmlText.length} chars`);
                                     
-                                    if (plotText && plotText.length > 100) {
-                                        console.log(`  ✅ Found Plot section: ${plotText.length} chars`);
-                                        console.log(`  📄 Plot section preview (first 500 chars): ${plotText.substring(0, 500)}`);
+                                    // Try to extract the Plot section from HTML
+                                    // Look for <h2>Plot</h2> or <h2 id="Plot"> or similar
+                                    const plotSectionRegex = /<h2[^>]*>[\s]*Plot[\s]*<\/h2>[\s\S]*?(?=<h2|<div class="mw-parser-output">|$)/i;
+                                    const plotMatch = htmlText.match(plotSectionRegex);
+                                    
+                                    if (plotMatch) {
+                                        // Extract text from HTML (remove tags)
+                                        let plotText = plotMatch[0];
+                                        // Remove HTML tags but keep text
+                                        plotText = plotText.replace(/<[^>]+>/g, ' ');
+                                        // Clean up whitespace
+                                        plotText = plotText.replace(/\s+/g, ' ').trim();
                                         
-                                        // Combine with existing extract, prioritizing Plot section
-                                        if (plotText.length > fullExtract.length) {
-                                            console.log(`  📚 Using Plot section (${plotText.length} chars) instead of extract (${fullExtract.length} chars)`);
-                                            fullExtract = plotText;
-                                        } else {
-                                            // Append Plot section to extract if it's different
-                                            if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
-                                                console.log(`  📚 Appending Plot section to extract`);
-                                                fullExtract = fullExtract + ' ' + plotText;
+                                        if (plotText && plotText.length > 100) {
+                                            console.log(`  ✅ Found Plot section: ${plotText.length} chars`);
+                                            console.log(`  📄 Plot section preview (first 500 chars): ${plotText.substring(0, 500)}`);
+                                            
+                                            // Combine with existing extract, prioritizing Plot section
+                                            if (plotText.length > fullExtract.length) {
+                                                console.log(`  📚 Using Plot section (${plotText.length} chars) instead of extract (${fullExtract.length} chars)`);
+                                                fullExtract = plotText;
+                                            } else {
+                                                // Append Plot section to extract if it's different
+                                                if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
+                                                    console.log(`  📚 Appending Plot section to extract`);
+                                                    fullExtract = fullExtract + ' ' + plotText;
+                                                }
                                             }
+                                        } else {
+                                            console.log(`  ⚠️ Plot section found but too short: ${plotText.length} chars`);
                                         }
                                     } else {
-                                        console.log(`  ⚠️ Plot section found but too short: ${plotText.length} chars`);
-                                    }
-                                } else {
-                                    console.log(`  ⚠️ Plot section not found in HTML (might use different heading format)`);
-                                    // Try alternative patterns
-                                    const altPlotRegex = /<h2[^>]*id="[^"]*[Pp]lot[^"]*"[^>]*>[\s\S]*?(?=<h2|$)/i;
-                                    const altMatch = htmlText.match(altPlotRegex);
-                                    if (altMatch) {
-                                        let plotText = altMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                                        if (plotText && plotText.length > 100) {
-                                            console.log(`  ✅ Found Plot section (alternative pattern): ${plotText.length} chars`);
-                                            if (plotText.length > fullExtract.length) {
-                                                fullExtract = plotText;
-                                            } else if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
-                                                fullExtract = fullExtract + ' ' + plotText;
+                                        console.log(`  ⚠️ Plot section not found in HTML (might use different heading format)`);
+                                        // Try alternative patterns
+                                        const altPlotRegex = /<h2[^>]*id="[^"]*[Pp]lot[^"]*"[^>]*>[\s\S]*?(?=<h2|$)/i;
+                                        const altMatch = htmlText.match(altPlotRegex);
+                                        if (altMatch) {
+                                            let plotText = altMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                            if (plotText && plotText.length > 100) {
+                                                console.log(`  ✅ Found Plot section (alternative pattern): ${plotText.length} chars`);
+                                                if (plotText.length > fullExtract.length) {
+                                                    fullExtract = plotText;
+                                                } else if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
+                                                    fullExtract = fullExtract + ' ' + plotText;
+                                                }
                                             }
                                         }
                                     }
+                                } else {
+                                    console.log(`  ⚠️ HTML fetch failed with status: ${htmlResponse.status}`);
                                 }
-                            } else {
-                                console.log(`  ⚠️ HTML fetch failed with status: ${htmlResponse.status}`);
+                            } catch (htmlError) {
+                                console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
                             }
-                        } catch (htmlError) {
-                            console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
+                            
+                            return {
+                                title: directData.title,
+                                description: directData.description || 'Unknown',
+                                plotSummary: fullExtract,
+                                reviews: '',
+                                contentWarnings: '',
+                                publishedDate: 'Unknown',
+                                pageCount: null,
+                                categories: [],
+                                type: 'movie',
+                                source: 'Wikipedia'
+                            };
+                        } else {
+                            console.log(`  ⚠️ Direct page fetch rejected: isLikelyFilmPage=${isLikelyFilmPage}, looksLikePerson=${looksLikePerson}, looksLikeBook=${looksLikeBook}`);
                         }
-                        
-                        return {
-                            title: directData.title,
-                            description: directData.description || 'Unknown',
-                            plotSummary: fullExtract,
-                            reviews: '',
-                            contentWarnings: '',
-                            publishedDate: 'Unknown',
-                            pageCount: null,
-                            categories: [],
-                            type: 'movie',
-                            source: 'Wikipedia'
-                        };
                     } else {
-                        console.log(`  ⚠️ Direct page fetch rejected: isLikelyFilmPage=${isLikelyFilmPage}, looksLikePerson=${looksLikePerson}, looksLikeBook=${looksLikeBook}`);
+                        console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status}`);
                     }
-                } else {
-                    console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status}`);
+                } catch (directError) {
+                    console.log(`  ⚠️ Direct page fetch error:`, directError);
                 }
-            } catch (directError) {
-                console.log(`  ⚠️ Direct page fetch error:`, directError);
-            }
+            } // End of if (!foundMatch)
             
             console.log(`  🎬 Wikipedia: No movie page found for "${query}"`);
             return null;
