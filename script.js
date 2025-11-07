@@ -3,6 +3,10 @@ let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
 let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
+// Version identifier for debugging - updated when direct fetch is added
+const SCRIPT_VERSION = '2025-11-07-v2-direct-fetch';
+console.log(`📦 Script version: ${SCRIPT_VERSION}`);
+
 // Load API keys from config.js if available (for local development)
 console.log('🔧 Loading API keys...');
 console.log('CONFIG object available:', typeof CONFIG !== 'undefined');
