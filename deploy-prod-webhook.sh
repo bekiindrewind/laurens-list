@@ -8,17 +8,27 @@ echo "🚀 Starting production deployment via webhook..."
 echo "📅 $(date)"
 
 # Navigate to project directory (mounted volume)
-# Check if /app exists, otherwise use current directory
+# Check if /app exists (running in container), otherwise use host path
 if [ -d "/app" ]; then
+    PROJECT_DIR="/app"
     cd /app
+    echo "✅ Running in container, using /app"
 else
-    echo "⚠️  /app not found, using current directory: $(pwd)"
-    # Try to find the project directory
-    if [ -f "deploy-prod-webhook.sh" ]; then
-        echo "✅ Found deploy-prod-webhook.sh in current directory"
+    # Running on host - use host path
+    PROJECT_DIR="/root/laurens-list"
+    if [ -d "$PROJECT_DIR" ]; then
+        cd "$PROJECT_DIR"
+        echo "✅ Running on host, using $PROJECT_DIR"
     else
-        echo "❌ ERROR: Cannot find project directory!"
-        exit 1
+        echo "⚠️  $PROJECT_DIR not found, using current directory: $(pwd)"
+        PROJECT_DIR="$(pwd)"
+        # Try to find the project directory
+        if [ -f "deploy-prod-webhook.sh" ]; then
+            echo "✅ Found deploy-prod-webhook.sh in current directory"
+        else
+            echo "❌ ERROR: Cannot find project directory!"
+            exit 1
+        fi
     fi
 fi
 
@@ -44,7 +54,7 @@ echo "📦 Building image with unique tag: ${IMAGE_NAME}"
 # This ensures the build context has the latest files
 echo "🔍 Verifying build context has latest code..."
 EXPECTED_VERSION="${COMMIT_HASH}-prod"
-ACTUAL_VERSION=$(grep -oP "const SCRIPT_VERSION = '\K[^']+" /app/script.js 2>/dev/null || echo "")
+ACTUAL_VERSION=$(grep -oP "const SCRIPT_VERSION = '\K[^']+" "$PROJECT_DIR/script.js" 2>/dev/null || echo "")
 if [ -n "$ACTUAL_VERSION" ] && [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
     echo "⚠️  WARNING: script.js has SCRIPT_VERSION='$ACTUAL_VERSION' but current commit is '$COMMIT_HASH'"
     echo "   This means the build context might have old code!"
@@ -57,8 +67,9 @@ fi
 echo "🛑 Stopping and removing production container..."
 # Stop and remove the container to avoid build context validation issues
 # Set project name explicitly to match the image name (laurens-list)
-docker compose -f /app/docker-compose.yml -p laurens-list stop laurenslist || true
-docker compose -f /app/docker-compose.yml -p laurens-list rm -f laurenslist || true
+# Use PROJECT_DIR variable to handle both container and host paths
+docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list stop laurenslist || true
+docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list rm -f laurenslist || true
 
 echo "🗑️  Removing old cached images..."
 # Remove ALL images with the prod tag pattern to prevent rollbacks
@@ -92,10 +103,10 @@ docker build \
   --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
   --build-arg GIT_COMMIT="${COMMIT_HASH}" \
   --build-arg ENV_SUFFIX="prod" \
-  -f /app/Dockerfile \
+  -f "$PROJECT_DIR/Dockerfile" \
   -t "${IMAGE_NAME}" \
   -t laurens-list-laurenslist:latest \
-  /app
+  "$PROJECT_DIR"
 
 if [ $? -eq 0 ]; then
     echo "✅ Docker build completed successfully"
@@ -109,13 +120,13 @@ echo "▶️  Starting production container with unique image tag..."
 # This prevents Docker Compose from using a cached 'latest' reference when container restarts
 # We keep the unique tag in docker-compose.yml so restarts always use the correct image
 # Match dev's working approach - simple and effective
-sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
+sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$PROJECT_DIR/docker-compose.yml"
 
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 # Use --pull never to ensure we use the image we just built (not a cached one)
-COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list up -d --no-build --force-recreate --pull never laurenslist
 
 # DO NOT restore docker-compose.yml to use 'latest'
 # Keeping the unique tag ensures the container always uses the correct image, even after restarts
