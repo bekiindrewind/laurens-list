@@ -3,9 +3,11 @@ let TMDB_API_KEY = 'YOUR_TMDB_API_KEY';
 let GOOGLE_BOOKS_API_KEY = 'YOUR_GOOGLE_BOOKS_API_KEY';
 let DOESTHEDOGDIE_API_KEY = 'YOUR_DTDD_API_KEY';
 
-// Version identifier for debugging - updated when direct fetch is added
-const SCRIPT_VERSION = '2025-11-07-v2-direct-fetch';
+// Version identifier for debugging - uses git commit hash
+// This is updated automatically during deployment
+const SCRIPT_VERSION = '1f99546-dev';
 console.log(`📦 Script version: ${SCRIPT_VERSION}`);
+console.log(`📦 Deployed: ${new Date().toISOString()}`);
 
 // Load API keys from config.js if available (for local development)
 console.log('🔧 Loading API keys...');
@@ -2262,6 +2264,7 @@ class LaurensList {
             // If search didn't find it, try direct page fetch as fallback
             // This handles cases where the page exists but search doesn't return it
             // Only try direct fetch if we haven't found a match yet
+            console.log(`  🔍 foundMatch status: ${foundMatch}`);
             if (!foundMatch) {
                 console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
                 // Wikipedia page titles use underscores, not spaces or URL encoding
@@ -3466,6 +3469,17 @@ class LaurensList {
         const resultInfo = document.getElementById('resultInfo');
         const analysisDetails = document.getElementById('analysisDetails');
 
+        // Debug logging
+        console.log('📊 displayResults called:', {
+            title: content.title,
+            type: content.type,
+            analysis: analysis ? {
+                isSafe: analysis.isSafe,
+                confidence: analysis.confidence,
+                hasConfidence: 'confidence' in analysis
+            } : 'null'
+        });
+
         // Set title
         resultTitle.textContent = content.title;
 
@@ -3484,7 +3498,8 @@ class LaurensList {
                 ? content.categories.map(cat => this.escapeHtml(cat)).join(', ') 
                 : '';
             
-            const confidence = analysis && analysis.confidence ? Math.round(analysis.confidence * 100) : null;
+            const confidence = analysis && typeof analysis.confidence !== 'undefined' ? Math.round(analysis.confidence * 100) : null;
+            console.log(`📊 Book confidence: ${confidence}% (raw: ${analysis?.confidence})`);
             infoHtml = `
                 <p><strong>Author:</strong> ${author}</p>
                 <p><strong>Published:</strong> ${publishedDate}</p>
@@ -3500,7 +3515,8 @@ class LaurensList {
                 ? content.genres.map(genre => this.escapeHtml(genre)).join(', ') 
                 : '';
             
-            const confidence = analysis && analysis.confidence ? Math.round(analysis.confidence * 100) : null;
+            const confidence = analysis && typeof analysis.confidence !== 'undefined' ? Math.round(analysis.confidence * 100) : null;
+            console.log(`📊 Movie confidence: ${confidence}% (raw: ${analysis?.confidence})`);
             infoHtml = `
                 <p><strong>Release Date:</strong> ${releaseDate}</p>
                 <p><strong>Rating:</strong> ${rating}</p>
