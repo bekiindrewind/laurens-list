@@ -51,9 +51,26 @@ git checkout main
 echo "🔄 Stashing any local changes..."
 git stash || true
 
+# CRITICAL: Protect docker-compose.yml from being reverted by git
+# Tell git to ignore changes to docker-compose.yml on the host filesystem
+# This prevents git reset --hard from reverting our unique tag changes
+echo "🔒 Protecting docker-compose.yml from git revert..."
+# Use host path for git operations (not container path)
+HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+if [ -f "$HOST_COMPOSE_FILE" ]; then
+    # Temporarily unprotect if already protected
+    git update-index --no-assume-unchanged "$HOST_COMPOSE_FILE" 2>/dev/null || true
+    # Protect it from git operations
+    git update-index --assume-unchanged "$HOST_COMPOSE_FILE" 2>/dev/null || true
+    echo "✅ docker-compose.yml protected from git revert"
+else
+    echo "⚠️  Warning: $HOST_COMPOSE_FILE not found, skipping git protection"
+fi
+
 # CRITICAL: Always do hard reset to ensure we have absolute latest code from main
 # git pull can fail or not fully sync if there are conflicts or if server was on different branch
 # Hard reset guarantees we have the exact state of origin/main
+# docker-compose.yml is now protected, so it won't be reverted
 echo "🔄 Ensuring build context has absolute latest code from main..."
 git reset --hard origin/main
 echo "✅ Hard reset complete - build context guaranteed to have latest code from main"
@@ -77,7 +94,14 @@ if [ ! -f "$COMPOSE_FILE" ] && [ -f "/root/laurens-list/docker-compose.yml" ]; t
     # Running on host - use host path
     COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
 fi
+# Update both container path and host path to ensure consistency
 sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$COMPOSE_FILE"
+# Also update host path if different
+HOST_COMPOSE_FILE="/root/laurens-list/docker-compose.yml"
+if [ -f "$HOST_COMPOSE_FILE" ] && [ "$COMPOSE_FILE" != "$HOST_COMPOSE_FILE" ]; then
+    sed -i "s|image: laurens-list-laurenslist:.*|image: ${IMAGE_NAME}|g" "$HOST_COMPOSE_FILE"
+    echo "✅ Updated both container and host docker-compose.yml"
+fi
 # Verify the update worked
 if grep -q "${IMAGE_NAME}" "$COMPOSE_FILE"; then
     echo "✅ docker-compose.yml updated with unique tag: ${IMAGE_NAME}"
