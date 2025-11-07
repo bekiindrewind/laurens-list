@@ -83,9 +83,10 @@ else
 fi
 
 echo "▶️  Starting dev container with unique image tag..."
-# Temporarily update docker-compose.yml to use the unique image tag
-# This prevents Docker Compose from using a cached 'latest' reference
-sed -i "s|image: laurens-list-laurenslist-dev:latest|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
+# Permanently update docker-compose.yml to use the unique image tag
+# This prevents Docker Compose from using a cached 'latest' reference when container restarts
+# We keep the unique tag in docker-compose.yml so restarts always use the correct image
+sed -i "s|image: laurens-list-laurenslist-dev:.*|image: ${IMAGE_NAME}|g" /app/docker-compose.yml
 
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
@@ -93,9 +94,9 @@ sed -i "s|image: laurens-list-laurenslist-dev:latest|image: ${IMAGE_NAME}|g" /ap
 # Use --pull never to ensure we use the image we just built (not a cached one)
 COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate --pull never laurenslist-dev
 
-# Restore docker-compose.yml to use 'latest' for future deployments
-# (The container is now running with the unique tag, so it won't change)
-sed -i "s|image: ${IMAGE_NAME}|image: laurens-list-laurenslist-dev:latest|g" /app/docker-compose.yml
+# DO NOT restore docker-compose.yml to use 'latest'
+# Keeping the unique tag ensures the container always uses the correct image, even after restarts
+echo "📝 docker-compose.yml now uses unique tag: ${IMAGE_NAME}"
 
 echo "🔍 Verifying container is using the new image..."
 # Wait a moment for container to start
