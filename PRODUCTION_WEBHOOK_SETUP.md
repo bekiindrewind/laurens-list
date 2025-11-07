@@ -434,11 +434,13 @@ The deployment script now uses **unique image tags** (commit hash-based) instead
 1. Deployment script detects environment (container vs host) and uses correct paths
 2. Loads environment variables from `/root/.env` if running on host
 3. Gets current commit hash: `COMMIT_HASH=$(git rev-parse --short HEAD)`
-4. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
-5. Updates `docker-compose.yml` to use unique tag permanently (simple `sed` update, matching dev's approach)
-6. Passes `GIT_COMMIT` and `ENV_SUFFIX="prod"` build args to Dockerfile
-7. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
-8. Verifies container is using the new image before completing
+4. **CRITICAL**: Updates `docker-compose.yml` IMMEDIATELY after `git pull` (before build) - this ensures the unique tag is set before any container operations
+5. If `git reset --hard` happens during build context verification, re-applies the unique tag to `docker-compose.yml`
+6. Builds image with unique tag: `laurens-list-laurenslist:prod-${COMMIT_HASH}`
+7. Passes `GIT_COMMIT` and `ENV_SUFFIX="prod"` build args to Dockerfile
+8. Dockerfile updates `SCRIPT_VERSION` during build using the commit hash
+9. Verifies container is using the new image before completing
+10. Always uses `/app/docker-compose.yml` (mounted volume) consistently throughout - this is what Docker Compose reads
 
 **Key Simplification**: The production deployment script now matches dev's proven working approach - simple `sed` update of `docker-compose.yml` without complex git protection logic. Dev works without git protection, so prod uses the same simple approach.
 
@@ -468,12 +470,14 @@ echo "Container SCRIPT_VERSION: ${CONTAINER_VERSION}"
 **Why This Prevents Rollbacks**:
 
 1. **Unique tags are immutable**: Once an image is tagged with `prod-c006ce1`, that tag always points to that specific image
-2. **docker-compose.yml is pinned**: The unique tag is stored permanently in `docker-compose.yml`, so restarts always use the correct image
-3. **No `latest` tag confusion**: Docker Compose can't accidentally use an old `latest` image because `docker-compose.yml` doesn't reference `latest`
-4. **Build context verification**: Script checks if build context has latest code and forces hard reset if needed
-5. **SCRIPT_VERSION accuracy**: `SCRIPT_VERSION` is set during build using actual commit hash, not source code
-6. **Simple and proven**: Uses the same simple approach as dev, which has been working reliably
-7. **Image verification**: Script verifies container is using the correct image before completing
+2. **docker-compose.yml is pinned IMMEDIATELY after git pull**: The unique tag is set right after `git pull` (before build), preventing git from reverting it. This is critical because `docker-compose.yml` is tracked by git.
+3. **Re-applies after git reset --hard**: If build context verification triggers `git reset --hard`, the unique tag is re-applied to `docker-compose.yml` immediately after
+4. **Consistent file path**: Always uses `/app/docker-compose.yml` (mounted volume) consistently throughout - this is what Docker Compose reads
+5. **No `latest` tag confusion**: Docker Compose can't accidentally use an old `latest` image because `docker-compose.yml` doesn't reference `latest`
+6. **Build context verification**: Script checks if build context has latest code and forces hard reset if needed
+7. **SCRIPT_VERSION accuracy**: `SCRIPT_VERSION` is set during build using actual commit hash, not source code
+8. **Simple and proven**: Uses the same simple approach as dev, which has been working reliably
+9. **Image verification**: Script verifies container is using the correct image before completing
 
 **Prevention**:
 - The deployment script automatically uses unique tags and pins `docker-compose.yml`
@@ -546,8 +550,11 @@ docker compose -f /root/laurens-list/docker-compose.yml up -d webhook-listener-p
 7. ✅ Simplified to match dev's working approach (removed complex git protection logic)
 8. ✅ Added environment variable loading for manual host execution
 9. ✅ Uses `PROJECT_DIR` variable for all paths (works in both environments)
+10. ✅ **Fixed critical rollback issue (Commit 611f71d)**: Update `docker-compose.yml` immediately after `git pull` to prevent git from reverting unique tag changes. Re-apply unique tag after `git reset --hard` if it happens. Always use `/app/docker-compose.yml` consistently throughout.
 
-**Rollback Prevention Verified**: November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+**Rollback Prevention Verified**: 
+- November 7, 2025 - Production deployment verified working with unique tags (`prod-b62c36d`). Script simplified to match dev's proven working approach. Container restarts confirmed to use pinned unique tag, not `latest`.
+- **Latest Fix (Commit 611f71d)**: Fixed critical issue where `git pull` was reverting the unique tag changes. Solution: Update `docker-compose.yml` IMMEDIATELY after `git pull` (before build) and re-apply unique tag after `git reset --hard` if it happens. Always use `/app/docker-compose.yml` consistently throughout. **Verified working** - production container confirmed using latest version (`611f71d-prod`).
 
-**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach.
+**Key Lesson Learned**: Dev works reliably with simple `sed` update of `docker-compose.yml` without complex git protection logic. Production now uses the same simple, proven approach. **Critical addition**: Must update `docker-compose.yml` immediately after `git pull` to prevent git from reverting the unique tag changes.
 
