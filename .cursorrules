@@ -7,6 +7,13 @@
 - Only edit remote files directly when absolutely necessary (emergency fixes, config files that can't be committed, etc.)
 - When suggesting fixes for remote servers, prioritize solutions that involve: local changes → git commit → git push → pull on server
 
+### Git Branch Workflow
+- **ALWAYS commit and push to `dev` branch first** - Never push directly to `main` branch
+- Workflow: Make changes → `git add .` → `git commit -m "message"` → `git push origin dev`
+- Only merge `dev` to `main` after testing or when explicitly requested by user
+- When user asks to "commit and push", assume they mean to `dev` branch unless they explicitly say "to prod" or "to main"
+- If user explicitly requests pushing to main/prod, then: `git checkout main` → `git merge dev` → `git push origin main`
+
 ## API Integration Rules
 
 When integrating or fixing API issues:
