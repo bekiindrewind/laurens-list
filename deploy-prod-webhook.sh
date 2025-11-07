@@ -8,7 +8,19 @@ echo "🚀 Starting production deployment via webhook..."
 echo "📅 $(date)"
 
 # Navigate to project directory (mounted volume)
-cd /app
+# Check if /app exists, otherwise use current directory
+if [ -d "/app" ]; then
+    cd /app
+else
+    echo "⚠️  /app not found, using current directory: $(pwd)"
+    # Try to find the project directory
+    if [ -f "deploy-prod-webhook.sh" ]; then
+        echo "✅ Found deploy-prod-webhook.sh in current directory"
+    else
+        echo "❌ ERROR: Cannot find project directory!"
+        exit 1
+    fi
+fi
 
 echo "📥 Fetching latest changes from GitHub..."
 git fetch origin
