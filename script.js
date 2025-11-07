@@ -1959,18 +1959,34 @@ class LaurensList {
                                     const summaryData = await summaryResponse.json();
                                     console.log(`  📊 Wikipedia summary:`, summaryData);
                                     
-                                    // Verify this is a film page (more strict check for exact matches too)
+                                    // Verify this is a film page (more lenient for exact title matches)
                                     const extractLower = (summaryData.extract || '').toLowerCase();
                                     const descLower = (summaryData.description || '').toLowerCase();
+                                    const fullExtract = extractLower; // Use full extract, not just first 200 chars
                                     
                                     // Require "(film)" in title OR description explicitly says it's a film/movie
                                     const hasFilmInTitle = titleLower.includes('(film)');
                                     const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
+                                    const extractContainsFilm = fullExtract.includes('film') || fullExtract.includes('movie');
                                     const extractStartsWithFilm = extractLower.substring(0, 200).includes('film') || 
                                                                   extractLower.substring(0, 200).includes('movie');
+                                    
+                                    // For exact title matches, be more lenient - accept if:
+                                    // 1. Has "(film)" in title, OR
+                                    // 2. Description says it's a film/movie, OR
+                                    // 3. Extract mentions film/movie anywhere, OR
+                                    // 4. Extract contains plot-like content (mentions characters, story, etc.)
+                                    const hasPlotIndicators = fullExtract.includes('starring') || 
+                                                             fullExtract.includes('directed by') ||
+                                                             fullExtract.includes('cast') ||
+                                                             fullExtract.includes('character') ||
+                                                             fullExtract.includes('plot') ||
+                                                             fullExtract.includes('story');
+                                    
                                     const isLikelyFilmPage = hasFilmInTitle || 
-                                                            (hasFilmInDescription && extractStartsWithFilm) ||
-                                                            (descLower && (descLower.includes(' is a ') || descLower.includes(' is an ')) && hasFilmInDescription);
+                                                            hasFilmInDescription ||
+                                                            extractContainsFilm ||
+                                                            (hasPlotIndicators && !descLower.includes('book') && !descLower.includes('novel'));
                                     
                                     // Additional check: reject if it looks like a person page
                                     const looksLikePerson = descLower && (
@@ -1982,7 +1998,14 @@ class LaurensList {
                                         (descLower.includes('born') && descLower.includes('actress'))
                                     );
                                     
-                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson) {
+                                    // Reject if it's clearly a book/novel page
+                                    const looksLikeBook = descLower && (
+                                        descLower.includes(' is a book') ||
+                                        descLower.includes(' is a novel') ||
+                                        descLower.includes('written by') && !fullExtract.includes('film') && !fullExtract.includes('movie')
+                                    );
+                                    
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
                                         return {
                                             title: summaryData.title,
@@ -2058,21 +2081,33 @@ class LaurensList {
                                     const summaryData = await summaryResponse.json();
                                     console.log(`  📊 Wikipedia summary:`, summaryData);
                                     
-                                    // Verify this is a film page (more strict check)
+                                    // Verify this is a film page (use same lenient logic as first pass)
                                     const extractLower = (summaryData.extract || '').toLowerCase();
                                     const descLower = (summaryData.description || '').toLowerCase();
+                                    const fullExtract = extractLower;
                                     
-                                    // Require "(film)" in title OR description explicitly says it's a film/movie
-                                    // AND verify it's not just mentioning "film" in passing (like "actor known for films")
+                                    const hasFilmInTitle = titleLower.includes('(film)');
                                     const hasFilmInDescription = descLower.includes('film') || descLower.includes('movie');
-                                    const extractStartsWithFilm = extractLower.substring(0, 200).includes('film') || 
-                                                                  extractLower.substring(0, 200).includes('movie');
-                                    const isLikelyFilmPage = titleLower.includes('(film)') || 
-                                                            (hasFilmInDescription && extractStartsWithFilm) ||
-                                                            (descLower && (descLower.includes(' is a ') || descLower.includes(' is an ')) && hasFilmInDescription);
+                                    const extractContainsFilm = fullExtract.includes('film') || fullExtract.includes('movie');
+                                    
+                                    // For exact title matches, be more lenient - accept if:
+                                    // 1. Has "(film)" in title, OR
+                                    // 2. Description says it's a film/movie, OR
+                                    // 3. Extract mentions film/movie anywhere, OR
+                                    // 4. Extract contains plot-like content (mentions characters, story, etc.)
+                                    const hasPlotIndicators = fullExtract.includes('starring') || 
+                                                             fullExtract.includes('directed by') ||
+                                                             fullExtract.includes('cast') ||
+                                                             fullExtract.includes('character') ||
+                                                             fullExtract.includes('plot') ||
+                                                             fullExtract.includes('story');
+                                    
+                                    const isLikelyFilmPage = hasFilmInTitle || 
+                                                            hasFilmInDescription ||
+                                                            extractContainsFilm ||
+                                                            (hasPlotIndicators && !descLower.includes('book') && !descLower.includes('novel'));
                                     
                                     // Additional check: reject if it looks like a person page
-                                    // Person pages often have descriptions like "is an American actor" or "is a British actress"
                                     const looksLikePerson = descLower && (
                                         descLower.includes(' is an actor') || 
                                         descLower.includes(' is a actor') ||
@@ -2082,7 +2117,14 @@ class LaurensList {
                                         (descLower.includes('born') && descLower.includes('actress'))
                                     );
                                     
-                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson) {
+                                    // Reject if it's clearly a book/novel page
+                                    const looksLikeBook = descLower && (
+                                        descLower.includes(' is a book') ||
+                                        descLower.includes(' is a novel') ||
+                                        descLower.includes('written by') && !fullExtract.includes('film') && !fullExtract.includes('movie')
+                                    );
+                                    
+                                    if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
                                         return {
                                             title: summaryData.title,
