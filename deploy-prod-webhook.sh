@@ -31,10 +31,13 @@ git checkout main
 echo "🔄 Stashing any local changes..."
 git stash || true
 
-echo "⬇️  Pulling latest changes..."
-# Temporarily allow git to update docker-compose.yml during pull
-# We'll update it with unique tag after building
+# CRITICAL: Temporarily allow git to update docker-compose.yml during pull
+# We need to allow git pull to update the file, then we'll update it with unique tag
+# and protect it from future git pulls
+echo "🔓 Temporarily allowing git to update docker-compose.yml..."
 git update-index --no-assume-unchanged docker-compose.yml 2>/dev/null || true
+
+echo "⬇️  Pulling latest changes..."
 git pull origin main
 
 # IMPORTANT: After git pull, docker-compose.yml will have 'latest' tag
