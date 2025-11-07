@@ -1902,6 +1902,14 @@ class LaurensList {
                     const searchData = await searchResponse.json();
                     console.log(`  📊 Wikipedia search results:`, searchData);
                     
+                    // Log all search result titles for debugging
+                    if (searchData.query && searchData.query.search && searchData.query.search.length > 0) {
+                        console.log(`  🔍 Found ${searchData.query.search.length} Wikipedia search results:`);
+                        searchData.query.search.forEach((result, idx) => {
+                            console.log(`    ${idx + 1}. "${result.title}" (snippet: ${result.snippet.substring(0, 100)}...)`);
+                        });
+                    }
+                    
                     if (searchData.query && searchData.query.search && searchData.query.search.length > 0) {
                         // First pass: look for exact or very close title matches
                         for (const result of searchData.query.search) {
