@@ -1798,6 +1798,87 @@ class LaurensList {
                 }
             }
             
+            // If search didn't find it, try direct page fetch as fallback
+            // This handles cases where the page exists but search doesn't return it
+            console.log(`  📚 Wikipedia search didn't find exact match, trying direct page fetch...`);
+            // Wikipedia page titles use underscores, not spaces or URL encoding
+            const wikipediaTitle = query.replace(/\s+/g, '_');
+            // Try summary first (short extract)
+            const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
+            console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+            
+            // Also prepare URL for full extract (longer content)
+            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
+            console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
+            
+            try {
+                const directResponse = await fetch(directPageUrl);
+                if (directResponse.ok) {
+                    const directData = await directResponse.json();
+                    console.log(`  📊 Direct page fetch result:`, directData);
+                    
+                    // Check if this looks like a book page (not a film)
+                    const extractLower = (directData.extract || '').toLowerCase();
+                    const descLower = (directData.description || '').toLowerCase();
+                    const titleLower = (directData.title || '').toLowerCase();
+                    
+                    const bookKeywords = ['book', 'novel', 'author', 'published', 'literature'];
+                    const filmKeywords = ['film', 'movie', 'director', 'actor', 'cinema'];
+                    
+                    const isBook = bookKeywords.some(keyword => 
+                        titleLower.includes(keyword) || descLower.includes(keyword) || extractLower.includes(keyword)
+                    );
+                    const isFilm = filmKeywords.some(keyword => 
+                        titleLower.includes(keyword) || descLower.includes(keyword) || extractLower.includes(keyword)
+                    );
+                    
+                    // Accept if it's a book or if it's not clearly a film
+                    if (directData.extract && directData.extract.length > 50 && (isBook || !isFilm)) {
+                        console.log(`  📚 Wikipedia found book via direct fetch: ${directData.title}`);
+                        
+                        // Try to get full extract for more content (summary is only ~300 chars)
+                        let fullExtract = directData.extract;
+                        try {
+                            const fullExtractResponse = await fetch(fullExtractUrl);
+                            if (fullExtractResponse.ok) {
+                                const fullExtractData = await fullExtractResponse.json();
+                                const pages = fullExtractData.query?.pages;
+                                if (pages) {
+                                    const pageId = Object.keys(pages)[0];
+                                    const pageData = pages[pageId];
+                                    if (pageData.extract && pageData.extract.length > fullExtract.length) {
+                                        console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${fullExtract.length} chars)`);
+                                        fullExtract = pageData.extract;
+                                    }
+                                }
+                            }
+                        } catch (fullExtractError) {
+                            console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
+                        }
+                        
+                        return {
+                            title: directData.title,
+                            author: directData.description || 'Unknown',
+                            description: fullExtract,
+                            plotSummary: fullExtract,
+                            reviews: '',
+                            contentWarnings: '',
+                            publishedDate: 'Unknown',
+                            pageCount: null,
+                            categories: [],
+                            type: 'book',
+                            source: 'Wikipedia'
+                        };
+                    } else {
+                        console.log(`  ⚠️ Direct page fetch rejected: isBook=${isBook}, isFilm=${isFilm}`);
+                    }
+                } else {
+                    console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status}`);
+                }
+            } catch (directError) {
+                console.log(`  ⚠️ Direct page fetch error:`, directError);
+            }
+            
             console.log(`  📚 Wikipedia: No page found for "${query}"`);
             return null;
             
@@ -3407,9 +3488,9 @@ class LaurensList {
             infoHtml = `
                 <p><strong>Author:</strong> ${author}</p>
                 <p><strong>Published:</strong> ${publishedDate}</p>
+                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
                 ${pageCount ? `<p><strong>Pages:</strong> ${pageCount}</p>` : ''}
                 ${categories ? `<p><strong>Categories:</strong> ${categories}</p>` : ''}
-                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
             `;
         } else {
             const releaseDate = this.escapeHtml(content.releaseDate || 'Unknown');
@@ -3423,9 +3504,9 @@ class LaurensList {
             infoHtml = `
                 <p><strong>Release Date:</strong> ${releaseDate}</p>
                 <p><strong>Rating:</strong> ${rating}</p>
+                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
                 ${runtime ? `<p><strong>Runtime:</strong> ${runtime} minutes</p>` : ''}
                 ${genres ? `<p><strong>Genres:</strong> ${genres}</p>` : ''}
-                ${confidence !== null ? `<p><strong>Confidence:</strong> ${confidence}%</p>` : ''}
             `;
         }
         resultInfo.innerHTML = infoHtml;
