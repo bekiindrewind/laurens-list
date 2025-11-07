@@ -434,6 +434,81 @@ docker compose up -d webhook-listener
 
 ---
 
+### Issue: Deployment not picking up latest code
+
+**Symptom**: 
+- Webhook triggers successfully (202 Accepted)
+- Docker build completes
+- Container restarts
+- But deployed code is still old (missing recent changes)
+- Version number in console doesn't match latest commit
+
+**Cause**: 
+- Docker build used cached layers despite `--no-cache` flag
+- Build context was incomplete or cached
+- The `COPY . .` step didn't copy the latest files
+
+**Solution - Manual Rebuild**:
+
+If the webhook deployment didn't pick up the latest code, manually rebuild on the server:
+
+```bash
+# 1. Navigate to project directory
+cd /root/laurens-list
+
+# 2. Pull latest changes
+git checkout dev
+git pull origin dev
+
+# 3. Verify you have the latest code
+git log --oneline -1
+# Should show the latest commit
+
+# 4. Stop and remove the dev container
+docker compose -f /root/laurens-list/docker-compose.yml -p laurens-list stop laurenslist-dev
+docker compose -f /root/laurens-list/docker-compose.yml -p laurens-list rm -f laurenslist-dev
+
+# 5. Remove cached image (important!)
+docker rmi laurens-list-laurenslist-dev:latest 2>/dev/null || true
+
+# 6. Load environment variables
+export $(grep -v '^#' /root/.env | xargs)
+
+# 7. Rebuild with --no-cache (forces complete rebuild)
+docker build \
+  --no-cache \
+  --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
+  --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
+  --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
+  -f /root/laurens-list/Dockerfile \
+  -t laurens-list-laurenslist-dev:latest \
+  /root/laurens-list
+
+# 8. Start the container
+COMPOSE_IGNORE_ORPHANS=1 docker compose -f /root/laurens-list/docker-compose.yml -p laurens-list up -d --no-build --force-recreate laurenslist-dev
+
+# 9. Check logs to verify
+docker logs laurens-list-laurenslist-dev-1 --tail 20
+```
+
+**Key Steps**:
+1. Remove the cached image with `docker rmi` before rebuilding
+2. Use `--no-cache` flag to force complete rebuild
+3. Verify files on server have latest code before building
+
+**Verification**:
+After rebuild, check the browser console for:
+- `📦 Script version: [commit-hash]-dev` (should match latest commit)
+- New debug logs that were added in recent commits
+- Latest features working correctly
+
+**Prevention**:
+- The deployment script already uses `--no-cache`, but if issues persist, manually remove cached images first
+- Check webhook listener logs to see if deployment completed successfully
+- Verify build context size (should be > 4KB for a typical project)
+
+---
+
 ## Architecture Notes
 
 ### How It Works
@@ -521,3 +596,36 @@ docker compose up -d laurenslist
 All of these issues are now documented in this troubleshooting section.
 
 **Verified Working**: Dev webhook successfully deployed and tested. Production webhook also verified working on November 5, 2025. Deployment completes in ~6-10 seconds with zero downtime.
+
+## Verifying Deployments
+
+### Check Version Number
+
+The deployed code includes a version number that matches the git commit hash. To verify the deployment:
+
+1. **Check Browser Console**: Open `https://dev.laurenslist.org` and check the console for:
+   ```
+   📦 Script version: [commit-hash]-dev
+   📦 Deployed: [timestamp]
+   ```
+
+2. **Compare with GitHub**: 
+   ```bash
+   git rev-parse --short HEAD  # Local
+   git log --oneline -1        # Latest commit
+   ```
+
+3. **Check Deployed Code**: 
+   ```bash
+   curl https://dev.laurenslist.org/script.js | grep "SCRIPT_VERSION"
+   ```
+
+### Common Issues
+
+- **Version doesn't match**: Deployment didn't pick up latest code - see "Deployment not picking up latest code" troubleshooting above
+- **Version not showing**: Old code deployed - rebuild with `--no-cache` and remove cached images
+- **Features not working**: Check browser console for errors, verify code is actually deployed
+
+### Manual Force Rebuild
+
+If webhook deployment isn't working, you can always manually rebuild on the server (see troubleshooting section above).
