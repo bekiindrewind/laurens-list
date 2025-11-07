@@ -32,7 +32,9 @@ echo "🔨 Rebuilding dev container..."
 # Use docker build directly via socket to avoid path resolution issues
 # Build context is /app (mounted volume) which maps to /root/laurens-list on host
 # Tag matches the image name in docker-compose.yml
+# Use --no-cache to ensure we get the latest code (especially important for COPY . . step)
 docker build \
+  --no-cache \
   --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
   --build-arg GOOGLE_BOOKS_API_KEY="${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}" \
   --build-arg DOESTHEDOGDIE_API_KEY="${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}" \
