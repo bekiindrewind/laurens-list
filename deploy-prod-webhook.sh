@@ -162,7 +162,7 @@ if [ -n "$CONTAINER_IMAGE_FULL" ] && [ -n "$NEW_IMAGE_ID_FULL" ]; then
     else
         echo "⚠️  WARNING: Container might be using an old image!"
         echo "   Forcing container restart..."
-        docker compose -f /app/docker-compose.yml -p laurens-list restart laurenslist
+        docker compose -f "$PROJECT_DIR/docker-compose.yml" -p laurens-list restart laurenslist
     fi
 else
     echo "⚠️  Could not verify image - container may still be starting"
