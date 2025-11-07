@@ -2214,10 +2214,31 @@ class LaurensList {
                     
                     if (directData.extract && directData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                         console.log(`  🎬 Wikipedia found movie via direct fetch: ${directData.title}`);
+                        
+                        // Try to get full extract for more content (summary is only ~300 chars)
+                        let fullExtract = directData.extract;
+                        try {
+                            const fullExtractResponse = await fetch(fullExtractUrl);
+                            if (fullExtractResponse.ok) {
+                                const fullExtractData = await fullExtractResponse.json();
+                                const pages = fullExtractData.query?.pages;
+                                if (pages) {
+                                    const pageId = Object.keys(pages)[0];
+                                    const pageData = pages[pageId];
+                                    if (pageData.extract && pageData.extract.length > directData.extract.length) {
+                                        console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${directData.extract.length} chars)`);
+                                        fullExtract = pageData.extract;
+                                    }
+                                }
+                            }
+                        } catch (fullExtractError) {
+                            console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
+                        }
+                        
                         return {
                             title: directData.title,
                             description: directData.description || 'Unknown',
-                            plotSummary: directData.extract,
+                            plotSummary: fullExtract,
                             reviews: '',
                             contentWarnings: '',
                             publishedDate: 'Unknown',
