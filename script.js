@@ -2256,6 +2256,71 @@ class LaurensList {
                             console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
                         }
                         
+                        // Try to get the Plot section specifically from HTML
+                        // This is important because the extract might not include the full Plot section
+                        try {
+                            console.log(`  📖 Attempting to fetch Plot section from HTML...`);
+                            const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${wikipediaTitle}`;
+                            const htmlResponse = await fetch(htmlUrl);
+                            if (htmlResponse.ok) {
+                                const htmlText = await htmlResponse.text();
+                                console.log(`  📄 HTML page fetched: ${htmlText.length} chars`);
+                                
+                                // Try to extract the Plot section from HTML
+                                // Look for <h2>Plot</h2> or <h2 id="Plot"> or similar
+                                const plotSectionRegex = /<h2[^>]*>[\s]*Plot[\s]*<\/h2>[\s\S]*?(?=<h2|<div class="mw-parser-output">|$)/i;
+                                const plotMatch = htmlText.match(plotSectionRegex);
+                                
+                                if (plotMatch) {
+                                    // Extract text from HTML (remove tags)
+                                    let plotText = plotMatch[0];
+                                    // Remove HTML tags but keep text
+                                    plotText = plotText.replace(/<[^>]+>/g, ' ');
+                                    // Clean up whitespace
+                                    plotText = plotText.replace(/\s+/g, ' ').trim();
+                                    
+                                    if (plotText && plotText.length > 100) {
+                                        console.log(`  ✅ Found Plot section: ${plotText.length} chars`);
+                                        console.log(`  📄 Plot section preview (first 500 chars): ${plotText.substring(0, 500)}`);
+                                        
+                                        // Combine with existing extract, prioritizing Plot section
+                                        if (plotText.length > fullExtract.length) {
+                                            console.log(`  📚 Using Plot section (${plotText.length} chars) instead of extract (${fullExtract.length} chars)`);
+                                            fullExtract = plotText;
+                                        } else {
+                                            // Append Plot section to extract if it's different
+                                            if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
+                                                console.log(`  📚 Appending Plot section to extract`);
+                                                fullExtract = fullExtract + ' ' + plotText;
+                                            }
+                                        }
+                                    } else {
+                                        console.log(`  ⚠️ Plot section found but too short: ${plotText.length} chars`);
+                                    }
+                                } else {
+                                    console.log(`  ⚠️ Plot section not found in HTML (might use different heading format)`);
+                                    // Try alternative patterns
+                                    const altPlotRegex = /<h2[^>]*id="[^"]*[Pp]lot[^"]*"[^>]*>[\s\S]*?(?=<h2|$)/i;
+                                    const altMatch = htmlText.match(altPlotRegex);
+                                    if (altMatch) {
+                                        let plotText = altMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                        if (plotText && plotText.length > 100) {
+                                            console.log(`  ✅ Found Plot section (alternative pattern): ${plotText.length} chars`);
+                                            if (plotText.length > fullExtract.length) {
+                                                fullExtract = plotText;
+                                            } else if (!fullExtract.toLowerCase().includes(plotText.substring(0, 100).toLowerCase())) {
+                                                fullExtract = fullExtract + ' ' + plotText;
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                console.log(`  ⚠️ HTML fetch failed with status: ${htmlResponse.status}`);
+                            }
+                        } catch (htmlError) {
+                            console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
+                        }
+                        
                         return {
                             title: directData.title,
                             description: directData.description || 'Unknown',
