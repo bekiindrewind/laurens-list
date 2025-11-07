@@ -2159,7 +2159,9 @@ class LaurensList {
             // If search didn't find it, try direct page fetch as fallback
             // This handles cases where the page exists but search doesn't return it
             console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
-            const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+            // Wikipedia page titles use underscores, not spaces or URL encoding
+            const wikipediaTitle = query.replace(/\s+/g, '_');
+            const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
             console.log(`  🔗 Direct page URL: ${directPageUrl}`);
             
             try {
