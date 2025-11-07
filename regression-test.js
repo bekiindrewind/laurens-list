@@ -4,12 +4,45 @@ const path = require('path');
 
 // Load the cancer terms from script.js (matching the website exactly)
 const CANCER_TERMS = [
+    // Cancer-specific terms
     'cancer', 'tumor', 'tumour', 'malignancy', 'carcinoma', 'sarcoma', 'leukemia', 'leukaemia',
     'lymphoma', 'melanoma', 'metastasis', 'chemotherapy', 'radiation', 'oncology', 'oncologist',
     'biopsy', 'malignant', 'benign', 'cancer treatment', 'cancer patient', 'cancer survivor',
     'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
     'brain tumor', 'brain tumour', 'cancer diagnosis', 'cancer prognosis', 'cancer remission',
-    'terminal illness', 'terminal disease', 'terminal cancer', 'medical treatment'
+    'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer',
+    'pediatric oncology', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
+    'oncology department', 'cancer center', 'oncology center',
+    
+    // Terminal illness terms (broader context)
+    'terminal illness', 'terminal disease', 'terminal condition', 'terminal diagnosis',
+    'end stage', 'end-stage', 'advanced stage', 'late stage', 'final stage',
+    'life expectancy', 'prognosis', 'months to live', 'weeks to live', 'days to live',
+    'incurable', 'untreatable',
+    'hospice care', 'end of life', 'final days', 'last days', 'deathbed',
+    'chronic illness', 'serious illness', 'life-threatening', 'critical condition',
+    'medical crisis', 'health crisis', 'declining health', 'failing health',
+    'deteriorating condition', 'worsening condition', 'progressive disease',
+    'degenerative disease', 'fatal disease', 'lethal disease', 'deadly disease',
+    // Keep 'hospice', 'palliative' but require additional context
+    // Note: Removed standalone 'terminal' to avoid false positives (e.g., "terminally itchy")
+    // Keep 'terminal illness', 'terminal disease', 'terminal cancer', etc.
+    'hospice', 'palliative',
+    
+    // Enhanced Semantic Analysis: Implied cancer phrases
+    'battles illness', 'fighting illness', 'struggles with illness', 'deals with illness',
+    'battles disease', 'fighting disease', 'struggles with disease', 'deals with disease',
+    'terminal diagnosis', 'terminal condition', 'terminal situation',
+    'medical condition', 'serious condition', 'life-threatening condition',
+    'life-threatening disease', 'life-threatening illness',
+    'diagnosed with', 'diagnosis of',
+    'fights cancer', 'battles cancer', 'struggles with cancer', 'deals with cancer',
+    'medical treatment', 'undergoes treatment', 'receives treatment',
+    'hospital stay', 'hospitalization', 'hospitalized',
+    'sick with', 'illness strikes', 'disease affects',
+    'coping with illness', 'coping with disease', 'living with illness', 'living with disease',
+    'illness story', 'disease story', 'medical drama', 'illness drama',
+    'health struggles', 'medical struggles', 'health battle', 'medical battle'
 ];
 
 const CANCER_SPECIFIC_TERMS = [
@@ -191,19 +224,39 @@ function checkKnownCancerContent(title, type) {
     const contentList = type === 'book' ? CANCER_THEMED_CONTENT.books : CANCER_THEMED_CONTENT.movies;
     const cleanTitle = normalizedTitle.replace(/^(summary of|book:|the book:)/i, '').trim();
     
-    const isKnownCancer = contentList.some(knownTitle => 
-        normalizedTitle.includes(knownTitle) || 
-        knownTitle.includes(normalizedTitle) ||
-        cleanTitle.includes(knownTitle) ||
-        knownTitle.includes(cleanTitle)
-    );
+    // Normalize titles by removing punctuation for better matching
+    const normalizeForMatching = (str) => str.replace(/[.,!?;:'"]/g, '').replace(/\s+/g, ' ').trim();
+    const normalizedTitleClean = normalizeForMatching(normalizedTitle);
+    const cleanTitleClean = normalizeForMatching(cleanTitle);
+    
+    const isKnownCancer = contentList.some(knownTitle => {
+        const knownTitleLower = knownTitle.toLowerCase();
+        const knownTitleClean = normalizeForMatching(knownTitleLower);
+        
+        return normalizedTitle.includes(knownTitleLower) || 
+               knownTitleLower.includes(normalizedTitle) ||
+               cleanTitle.includes(knownTitleLower) ||
+               knownTitleLower.includes(cleanTitle) ||
+               normalizedTitleClean.includes(knownTitleClean) ||
+               knownTitleClean.includes(normalizedTitleClean) ||
+               cleanTitleClean.includes(knownTitleClean) ||
+               knownTitleClean.includes(cleanTitleClean);
+    });
     
     return {
         isKnownCancer: isKnownCancer,
-        matchedTitle: isKnownCancer ? contentList.find(knownTitle => 
-            normalizedTitle.includes(knownTitle) || knownTitle.includes(normalizedTitle) ||
-            cleanTitle.includes(knownTitle) || knownTitle.includes(cleanTitle)
-        ) : null
+        matchedTitle: isKnownCancer ? contentList.find(knownTitle => {
+            const knownTitleLower = knownTitle.toLowerCase();
+            const knownTitleClean = normalizeForMatching(knownTitleLower);
+            return normalizedTitle.includes(knownTitleLower) || 
+                   knownTitleLower.includes(normalizedTitle) ||
+                   cleanTitle.includes(knownTitleLower) ||
+                   knownTitleLower.includes(cleanTitle) ||
+                   normalizedTitleClean.includes(knownTitleClean) ||
+                   knownTitleClean.includes(normalizedTitleClean) ||
+                   cleanTitleClean.includes(knownTitleClean) ||
+                   knownTitleClean.includes(cleanTitleClean);
+        }) : null
     };
 }
 
@@ -252,8 +305,26 @@ async function testMovie(title) {
             if (imdbResponse.ok) {
                 const imdbHtml = await imdbResponse.text();
                 const queryLower = title.toLowerCase().trim();
-                if (imdbHtml.toLowerCase().includes(queryLower)) {
-                    console.log(`  ✅ Found in IMDb Cancer Movies list`);
+                const imdbHtmlLower = imdbHtml.toLowerCase();
+                
+                // Check if title appears in the HTML (with better matching)
+                // Try exact match first
+                if (imdbHtmlLower.includes(queryLower)) {
+                    console.log(`  ✅ Found in IMDb Cancer Movies list (exact match)`);
+                    return {
+                        found: true,
+                        safe: false,
+                        reason: 'Found in IMDb Cancer Movies list',
+                        foundTerms: [],
+                        detectionMethod: 'IMDb Cancer List'
+                    };
+                }
+                
+                // Try matching without punctuation and with variations
+                const normalizedQuery = queryLower.replace(/[.,!?;:'"]/g, '').trim();
+                const normalizedHtml = imdbHtmlLower.replace(/[.,!?;:'"]/g, '');
+                if (normalizedHtml.includes(normalizedQuery)) {
+                    console.log(`  ✅ Found in IMDb Cancer Movies list (normalized match)`);
                     return {
                         found: true,
                         safe: false,
@@ -383,16 +454,76 @@ async function testBook(title) {
             };
         }
         
-        // 2. Check Trigger Warning Database (for books)
+        // 2. Check Trigger Warning Database (for books) - this is important!
         let triggerWarningCheck = null;
         try {
-            // The website uses a server-side proxy, but for testing we'll check if the title
-            // is likely in the Trigger Warning Database by checking if it's in our known list
-            // In a real scenario, the website fetches from /api/triggerwarning
-            // For now, we'll skip this check as it requires server-side access
-            // The website will check this via the proxy endpoint
+            // The website uses a server-side proxy, but we can fetch directly from the URL
+            const twUrl = 'https://triggerwarningdatabase.com/terminal-illnesses/';
+            console.log(`  🔍 Checking Trigger Warning Database...`);
+            const twResponse = await fetch(twUrl, {
+                headers: {
+                    'Accept': 'text/html',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+            if (twResponse.ok) {
+                const twHtml = await twResponse.text();
+                const queryLower = title.toLowerCase().trim();
+                const twHtmlLower = twHtml.toLowerCase();
+                
+                // Normalize query for better matching (remove punctuation)
+                const normalizeForMatching = (str) => str.replace(/[.,!?;:'"]/g, '').replace(/\s+/g, ' ').trim();
+                const queryNormalized = normalizeForMatching(queryLower);
+                
+                // Check if the title appears in the HTML (with normalized matching)
+                if (twHtmlLower.includes(queryLower) || twHtmlLower.includes(queryNormalized)) {
+                    // Try to extract book titles from the page
+                    // The Trigger Warning Database lists books in format: "**Title** by Author"
+                    const bookPattern = new RegExp(`\\*\\*([^*]+)\\*\\*\\s+by\\s+[^\\n]+`, 'gi');
+                    const matches = twHtml.match(bookPattern);
+                    
+                    if (matches) {
+                        for (const match of matches) {
+                            const titleMatch = match.match(/\*\*([^*]+)\*\*/);
+                            if (titleMatch) {
+                                const bookTitle = titleMatch[1].trim().toLowerCase();
+                                const bookTitleNormalized = normalizeForMatching(bookTitle);
+                                
+                                // Try multiple matching strategies
+                                if (bookTitle === queryLower || 
+                                    bookTitle.includes(queryLower) || 
+                                    queryLower.includes(bookTitle) ||
+                                    bookTitleNormalized === queryNormalized ||
+                                    bookTitleNormalized.includes(queryNormalized) ||
+                                    queryNormalized.includes(bookTitleNormalized)) {
+                                    console.log(`  ✅ Found in Trigger Warning Database: ${titleMatch[1]}`);
+                                    triggerWarningCheck = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        // If pattern matching fails, try simple text search
+                        // Check if title appears in the HTML (might be in different format)
+                        if (twHtmlLower.includes(queryLower) || twHtmlLower.includes(queryNormalized)) {
+                            console.log(`  ✅ Found in Trigger Warning Database (text match): ${title}`);
+                            triggerWarningCheck = true;
+                        }
+                    }
+                }
+            }
         } catch (twError) {
             console.log(`  ⚠️ Trigger Warning Database check error: ${twError.message}`);
+        }
+        
+        if (triggerWarningCheck) {
+            return {
+                found: true,
+                safe: false,
+                reason: 'Found in Trigger Warning Database',
+                foundTerms: [],
+                detectionMethod: 'Trigger Warning Database'
+            };
         }
         
         // 3. Search Google Books
@@ -406,25 +537,147 @@ async function testBook(title) {
         }
         
         const book = googleData.items[0].volumeInfo;
-        const description = (book.description || '').toLowerCase();
+        let description = (book.description || '').toLowerCase();
         
-        // 4. Search Wikipedia
+        // 4. Search Open Library
+        let openLibraryText = '';
+        try {
+            const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(title)}&limit=1`;
+            const olResponse = await fetch(olUrl);
+            const olData = await olResponse.json();
+            if (olData.docs && olData.docs.length > 0) {
+                const olBook = olData.docs[0];
+                if (olBook.key) {
+                    const workUrl = `https://openlibrary.org${olBook.key}.json`;
+                    const workResponse = await fetch(workUrl);
+                    const workData = await workResponse.json();
+                    
+                    // Handle description - it might be a string or an object
+                    let description = '';
+                    if (workData.description) {
+                        if (typeof workData.description === 'string') {
+                            description = workData.description;
+                        } else if (typeof workData.description === 'object' && workData.description.value) {
+                            description = workData.description.value;
+                        } else if (typeof workData.description === 'object' && Array.isArray(workData.description)) {
+                            description = workData.description.join(' ');
+                        }
+                    }
+                    openLibraryText = description.toLowerCase();
+                }
+            }
+        } catch (olError) {
+            console.log(`  ⚠️ Open Library error: ${olError.message}`);
+        }
+        
+        // 5. Search Goodreads (via CORS proxy)
+        let goodreadsText = '';
+        try {
+            const corsProxy = 'https://corsproxy.io/?';
+            const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent(title)}&search_type=books`;
+            const proxyUrl = corsProxy + encodeURIComponent(goodreadsUrl);
+            const grResponse = await fetch(proxyUrl);
+            if (grResponse.ok) {
+                const grHtml = await grResponse.text();
+                // Look for book page links
+                const bookLinkMatch = grHtml.match(/\/book\/show\/\d+[^"']*/);
+                if (bookLinkMatch) {
+                    const bookPageUrl = `https://www.goodreads.com${bookLinkMatch[0]}`;
+                    const bookPageProxyUrl = corsProxy + encodeURIComponent(bookPageUrl);
+                    const bookPageResponse = await fetch(bookPageProxyUrl);
+                    if (bookPageResponse.ok) {
+                        const bookPageHtml = await bookPageResponse.text();
+                        
+                        // Extract description from book page
+                        const descMatch = bookPageHtml.match(/<div[^>]*data-testid="description"[^>]*>([\s\S]*?)<\/div>/i);
+                        if (descMatch) {
+                            goodreadsText = descMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+                        }
+                        
+                        // Also extract reviews (important for cancer detection!)
+                        // The website extracts reviews and includes them in analysis
+                        const reviewSelectors = [
+                            '[data-testid="review-text"]',
+                            '[data-testid="reviewText"]',
+                            '[data-testid="review"]',
+                            '.ReviewText',
+                            '.reviewText',
+                            '.review-text'
+                        ];
+                        
+                        let reviewsText = '';
+                        for (const selector of reviewSelectors) {
+                            const reviewRegex = new RegExp(`<[^>]*class="[^"]*${selector.replace(/[\[\]]/g, '\\$&')}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]+>`, 'gi');
+                            const reviewMatches = bookPageHtml.match(reviewRegex);
+                            if (reviewMatches) {
+                                reviewsText = reviewMatches.slice(0, 30).map(match => {
+                                    const textMatch = match.match(/>([\s\S]*?)</);
+                                    return textMatch ? textMatch[1].replace(/<[^>]+>/g, ' ').trim() : '';
+                                }).filter(text => text.length > 0).join(' ').toLowerCase();
+                                if (reviewsText.length > 0) {
+                                    // Limit to first 5000 chars (matching website behavior)
+                                    reviewsText = reviewsText.substring(0, 5000);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // ALWAYS search the entire page HTML for cancer-related content (including blurred/spoiler text)
+                        // This will catch content that Goodreads hides with CSS blur
+                        // The website does this to catch cancer mentions in reviews that might be hidden
+                        // Limit to first 50,000 chars to avoid performance issues while still catching most content
+                        const pageText = bookPageHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase().substring(0, 50000);
+                        
+                        // Combine description, reviews, and full page text
+                        // The website analyzes all of this for cancer terms
+                        goodreadsText = (goodreadsText + ' ' + reviewsText + ' ' + pageText).trim();
+                    }
+                }
+            }
+        } catch (grError) {
+            console.log(`  ⚠️ Goodreads error: ${grError.message}`);
+        }
+        
+        // 6. Search Wikipedia
         const wikiTitle = title.replace(/\s+/g, '_');
-        const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikiTitle}`;
         let wikiText = '';
         
         try {
+            // First try the summary API
+            const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikiTitle}`;
             const wikiResponse = await fetch(wikiUrl);
             if (wikiResponse.ok) {
                 const wikiData = await wikiResponse.json();
                 wikiText = (wikiData.extract || '').toLowerCase();
             }
+            
+            // Also try to get the full extract (longer content) - matching website behavior
+            // The website uses the action API to get full extracts
+            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikiTitle}&origin=*`;
+            try {
+                const fullExtractResponse = await fetch(fullExtractUrl);
+                if (fullExtractResponse.ok) {
+                    const fullExtractData = await fullExtractResponse.json();
+                    const pages = fullExtractData.query?.pages;
+                    if (pages) {
+                        const pageId = Object.keys(pages)[0];
+                        const pageData = pages[pageId];
+                        if (pageData.extract && pageData.extract.length > wikiText.length) {
+                            // Use full extract if it's longer
+                            wikiText = pageData.extract.toLowerCase();
+                        }
+                    }
+                }
+            } catch (fullExtractError) {
+                // If full extract fails, use summary
+                console.log(`  ⚠️ Wikipedia full extract error: ${fullExtractError.message}`);
+            }
         } catch (wikiError) {
             console.log(`  ⚠️ Wikipedia error: ${wikiError.message}`);
         }
         
-        // 5. Check for cancer terms in all text
-        const allText = `${description} ${wikiText}`.toLowerCase();
+        // 7. Check for cancer terms in all text (from all sources)
+        const allText = `${description} ${openLibraryText} ${goodreadsText} ${wikiText}`.toLowerCase();
         const foundTerms = CANCER_TERMS.filter(term => allText.includes(term.toLowerCase()));
         
         // Final determination (matching website logic)

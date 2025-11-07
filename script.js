@@ -54,8 +54,10 @@ const CANCER_TERMS = [
     'medical crisis', 'health crisis', 'declining health', 'failing health',
     'deteriorating condition', 'worsening condition', 'progressive disease',
     'degenerative disease', 'fatal disease', 'lethal disease', 'deadly disease',
-    // Keep 'terminal', 'hospice', 'palliative' but require additional context
-    'terminal', 'hospice', 'palliative',
+    // Keep 'hospice', 'palliative' but require additional context
+    // Note: Removed standalone 'terminal' to avoid false positives (e.g., "terminally itchy")
+    // Keep 'terminal illness', 'terminal disease', 'terminal cancer', etc.
+    'hospice', 'palliative',
     
     // Enhanced Semantic Analysis: Implied cancer phrases
     // These phrases indicate cancer/terminal illness content even if "cancer" isn't explicitly mentioned
@@ -1384,7 +1386,7 @@ class LaurensList {
                             'targeted therapy', 'hormone therapy', 'stem cell transplant', 'bone marrow transplant',
                             
                             // Symptoms and progression
-                            'terminal', 'terminal illness', 'terminal cancer', 'stage 4', 'stage four', 'advanced cancer',
+                            'terminal illness', 'terminal cancer', 'terminal disease', 'terminal condition', 'stage 4', 'stage four', 'advanced cancer',
                             'metastasized', 'spread to', 'recurrence', 'relapse', 'remission', 'palliative care',
                             'hospice', 'end of life', 'dying from', 'died from', 'death from cancer'
                         ];
