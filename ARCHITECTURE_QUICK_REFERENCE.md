@@ -72,7 +72,12 @@ GitHub → Webhook POST → Webhook Listener (202 Accepted) → Async Deployment
 GitHub → Webhook POST → Production Webhook Listener (202 Accepted) → Async Deployment → Git Pull → Docker Build → Container → Traefik → Users
 ```
 
-**Note**: Production webhook uses separate secret (`WEBHOOK_SECRET_PROD`) and separate endpoint (`webhook-prod.laurenslist.org`).
+**Note**: Production webhook uses separate secret (`WEBHOOK_SECRET_PROD`) and separate endpoint (`webhook-prod.laurenslist.org`). Responds immediately with `202 Accepted`, then runs deployment asynchronously (takes ~6-10 seconds).
+
+**Rollback Prevention**: Uses unique image tags (commit hash-based) instead of `latest`:
+- Each deployment gets unique tag: `prod-{commit-hash}`
+- `docker-compose.yml` permanently pinned to unique tag
+- Prevents rollbacks when container restarts
 
 **Environments**:
 - **Production**: `main` branch → `laurenslist` container → `laurenslist.org` (automated via webhook)
