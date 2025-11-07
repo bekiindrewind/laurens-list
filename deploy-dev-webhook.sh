@@ -7,6 +7,18 @@ set -e  # Exit on error
 echo "🚀 Starting dev deployment via webhook..."
 echo "📅 $(date)"
 
+# Load environment variables from .env file if it exists
+# The webhook container loads from /root/.env, but we need them in this script
+if [ -f /root/.env ]; then
+    echo "📋 Loading environment variables from /root/.env..."
+    set -a  # Automatically export all variables
+    source /root/.env
+    set +a  # Stop automatically exporting
+    echo "✅ Environment variables loaded"
+else
+    echo "⚠️  Warning: /root/.env file not found"
+fi
+
 # Navigate to project directory (mounted volume)
 cd /app
 
@@ -33,6 +45,17 @@ echo "🔨 Rebuilding dev container..."
 # Build context is /app (mounted volume) which maps to /root/laurens-list on host
 # Tag matches the image name in docker-compose.yml
 # Use --no-cache to ensure we get the latest code (especially important for COPY . . step)
+
+# Check if environment variables are set
+if [ -z "$TMDB_API_KEY" ] || [ -z "$GOOGLE_BOOKS_API_KEY" ] || [ -z "$DOESTHEDOGDIE_API_KEY" ]; then
+    echo "⚠️  Warning: Some API keys are not set!"
+    echo "   TMDB_API_KEY: ${TMDB_API_KEY:+SET}${TMDB_API_KEY:-NOT SET}"
+    echo "   GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:+SET}${GOOGLE_BOOKS_API_KEY:-NOT SET}"
+    echo "   DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:+SET}${DOESTHEDOGDIE_API_KEY:-NOT SET}"
+    echo "   This will cause the build to fail or use empty API keys!"
+fi
+
+echo "🔨 Building Docker image..."
 docker build \
   --no-cache \
   --build-arg TMDB_API_KEY="${TMDB_API_KEY:-YOUR_TMDB_API_KEY}" \
@@ -42,17 +65,38 @@ docker build \
   -t laurens-list-laurenslist-dev:latest \
   /app
 
+if [ $? -eq 0 ]; then
+    echo "✅ Docker build completed successfully"
+else
+    echo "❌ Docker build failed!"
+    exit 1
+fi
+
 echo "▶️  Starting dev container..."
 # Use --no-build and --force-recreate to avoid build context validation
 # The container was removed above, so this will create a new one using the existing image
 # Set project name explicitly to match the image name (laurens-list)
 COMPOSE_IGNORE_ORPHANS=1 docker compose -f /app/docker-compose.yml -p laurens-list up -d --no-build --force-recreate laurenslist-dev
 
+if [ $? -eq 0 ]; then
+    echo "✅ Container started successfully"
+else
+    echo "❌ Failed to start container!"
+    exit 1
+fi
+
 echo "⏳ Waiting for container to start..."
 sleep 5
 
 echo "📋 Checking container logs..."
-docker logs root-laurenslist-dev-1 --tail 20 || echo "⚠️  Container not found yet"
+CONTAINER_NAME=$(docker ps --format "{{.Names}}" | grep laurenslist-dev | head -1)
+if [ -n "$CONTAINER_NAME" ]; then
+    echo "📋 Container name: $CONTAINER_NAME"
+    docker logs "$CONTAINER_NAME" --tail 20
+else
+    echo "⚠️  Container not found yet, checking all containers..."
+    docker ps -a | grep laurenslist
+fi
 
 echo "✅ Dev deployment complete!"
 echo "🌐 Test at: https://dev.laurenslist.org"
