@@ -120,7 +120,7 @@ const CANCER_THEMED_CONTENT = {
         'the notebook', 'five feet apart', 'everything everything', 'the sun is also a star',
         'all the bright places', 'looking for alaska', 'paper towns', 'turtles all the way down',
         'the bucket list', '50/50', 'wish i was here', 'the big sick',
-        'the art of racing in the rain',
+        'the art of racing in the rain', 'deadpool',
         
         // Terminal illness movies
         'steel magnolias', 'beaches', 'terms of endearment', 'love story',
@@ -2269,18 +2269,24 @@ class LaurensList {
             if (!foundMatch) {
                 console.log(`  🎬 Wikipedia search didn't find exact match, trying direct page fetch...`);
                 // Wikipedia page titles use underscores, not spaces or URL encoding
-                const wikipediaTitle = query.replace(/\s+/g, '_');
-                // Try summary first (short extract)
-                const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
-                console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+                // Try both the base title and with "(film)" suffix
+                const baseTitle = query.replace(/\s+/g, '_');
+                const filmTitle = `${baseTitle}_(film)`;
+                const titlesToTry = [filmTitle, baseTitle]; // Try "(film)" suffix first for movies
                 
-                // Also prepare URL for full extract (longer content)
-                // Use exchars to get more content (up to 5000 characters)
-                const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
-                console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
-                
-                try {
-                    const directResponse = await fetch(directPageUrl);
+                for (const wikipediaTitle of titlesToTry) {
+                    console.log(`  🔍 Trying direct page fetch with title: "${wikipediaTitle}"`);
+                    // Try summary first (short extract)
+                    const directPageUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikipediaTitle}`;
+                    console.log(`  🔗 Direct page URL: ${directPageUrl}`);
+                    
+                    // Also prepare URL for full extract (longer content)
+                    // Use exchars to get more content (up to 5000 characters)
+                    const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${wikipediaTitle}&origin=*`;
+                    console.log(`  🔗 Full extract URL: ${fullExtractUrl}`);
+                    
+                    try {
+                        const directResponse = await fetch(directPageUrl);
                     if (directResponse.ok) {
                         const directData = await directResponse.json();
                         console.log(`  📊 Direct page fetch result:`, directData);
@@ -2426,6 +2432,7 @@ class LaurensList {
                                 console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
                             }
                             
+                            // Return the result and break out of the loop
                             return {
                                 title: directData.title,
                                 description: directData.description || 'Unknown',
@@ -2440,13 +2447,17 @@ class LaurensList {
                             };
                         } else {
                             console.log(`  ⚠️ Direct page fetch rejected: isLikelyFilmPage=${isLikelyFilmPage}, looksLikePerson=${looksLikePerson}, looksLikeBook=${looksLikeBook}`);
+                            // Continue to next title in the loop
                         }
                     } else {
-                        console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status}`);
+                        console.log(`  ⚠️ Direct page fetch failed: ${directResponse.status} - trying next title...`);
+                        // Continue to next title in the loop
                     }
                 } catch (directError) {
                     console.log(`  ⚠️ Direct page fetch error:`, directError);
+                    // Continue to next title in the loop
                 }
+                } // End of for loop
             } // End of if (!foundMatch)
             
             console.log(`  🎬 Wikipedia: No movie page found for "${query}"`);
