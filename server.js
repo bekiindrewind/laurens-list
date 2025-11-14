@@ -125,6 +125,99 @@ app.get('/api/doesthedogdie', apiLimiter, async (req, res) => {
     }
 });
 
+// DuckDuckGo search proxy endpoint
+// SECURITY: Apply rate limiting to prevent abuse
+app.get('/api/duckduckgo-search', apiLimiter, async (req, res) => {
+    try {
+        // SECURITY: Sanitize query parameter before using
+        const rawQuery = req.query.q;
+        if (!rawQuery) {
+            return res.status(400).json({ error: 'Query parameter "q" is required' });
+        }
+        
+        const query = sanitizeServerInput(rawQuery);
+        if (!query) {
+            return res.status(400).json({ error: 'Invalid query parameter' });
+        }
+        
+        // Try both query formats: "{title} cancer" and "{title} movie cancer"
+        const queries = [
+            `${query} cancer`,
+            `${query} movie cancer`
+        ];
+        
+        const results = [];
+        
+        for (const searchQuery of queries) {
+            try {
+                const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&format=json&no_redirect=1&no_html=1`;
+                
+                console.log('Proxy: Fetching from DuckDuckGo:', url);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.error(`Proxy: DuckDuckGo response status: ${response.status} for query "${searchQuery}"`);
+                    continue; // Try next query format
+                }
+                
+                const data = await response.json();
+                
+                // Extract all text content from response
+                const textContent = [
+                    data.AbstractText || '',
+                    data.Heading || '',
+                    ...(data.RelatedTopics || []).map(topic => topic.Text || ''),
+                    ...(data.Results || []).map(result => result.Text || '')
+                ].filter(text => text.length > 0).join(' ').toLowerCase();
+                
+                if (textContent.length > 0) {
+                    results.push({
+                        query: searchQuery,
+                        text: textContent,
+                        abstractText: data.AbstractText || '',
+                        relatedTopics: data.RelatedTopics || [],
+                        results: data.Results || []
+                    });
+                }
+            } catch (queryError) {
+                // Log error to console for debugging
+                console.error(`DuckDuckGo query error for "${searchQuery}":`, queryError);
+                console.error(`  Error details:`, {
+                    message: queryError.message,
+                    stack: queryError.stack,
+                    query: searchQuery
+                });
+                // Continue to next query format
+                continue;
+            }
+        }
+        
+        // Return combined results
+        res.json({
+            success: results.length > 0,
+            results: results,
+            combinedText: results.map(r => r.text).join(' ')
+        });
+        
+    } catch (error) {
+        // Log full error details to console for debugging
+        console.error('DuckDuckGo proxy error:', error);
+        console.error('  Error details:', {
+            message: error.message,
+            stack: error.stack,
+            query: rawQuery || 'unknown'
+        });
+        // Don't expose error details to client (security) - return generic error
+        res.status(500).json({ error: 'Failed to fetch from DuckDuckGo' });
+    }
+});
+
 // Trigger Warning Database proxy endpoint
 // SECURITY: Apply rate limiting to prevent abuse
 app.get('/api/triggerwarning', apiLimiter, async (req, res) => {

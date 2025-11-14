@@ -2762,6 +2762,122 @@ class LaurensList {
         }
     }
 
+    async searchDuckDuckGoForCancerContent(query, type) {
+        console.log(`🦆 Searching DuckDuckGo for cancer-related content: "${query}" (${type})`);
+        
+        // Check if we're running from file:// protocol (CORS will block this)
+        if (window.location.protocol === 'file:') {
+            console.log(`  ⚠️ CORS blocked: Running from file:// protocol`);
+            return null;
+        }
+        
+        try {
+            const url = `/api/duckduckgo-search?q=${encodeURIComponent(query)}`;
+            
+            console.log(`  🔍 Fetching from DuckDuckGo via proxy...`);
+            console.log(`  🔗 URL: ${url}`);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                // If rate limited or server error, log to console for debugging, then fallback
+                if (response.status === 429) {
+                    console.error(`  🦆 DuckDuckGo: Rate limited (status ${response.status})`);
+                } else {
+                    console.error(`  🦆 DuckDuckGo: API request failed with status ${response.status}`);
+                }
+                // Return null to trigger fallback to pattern matching (no error shown to user)
+                return null;
+            }
+            
+            const data = await response.json();
+            console.log(`  📊 DuckDuckGo response:`, data);
+            
+            if (!data.success || !data.combinedText || data.combinedText.length === 0) {
+                console.log(`  🦆 DuckDuckGo: No results found`);
+                return null;
+            }
+            
+            // Analyze combined text for cancer-related terms
+            const combinedText = data.combinedText.toLowerCase();
+            
+            // Check for cancer terms using existing CANCER_TERMS list
+            const foundTerms = CANCER_TERMS.filter(term => 
+                combinedText.includes(term.toLowerCase())
+            );
+            
+            // Check if title mentions cancer
+            const titleMentionsCancer = CANCER_TERMS.some(term => 
+                query.toLowerCase().includes(term.toLowerCase())
+            );
+            
+            // Count number of results mentioning cancer
+            const resultsWithCancer = data.results.filter(result => {
+                const resultText = result.text.toLowerCase();
+                return CANCER_TERMS.some(term => resultText.includes(term.toLowerCase()));
+            }).length;
+            
+            // Determine if cancer content exists
+            const found = foundTerms.length > 0 || titleMentionsCancer || resultsWithCancer > 0;
+            
+            if (!found) {
+                console.log(`  🦆 DuckDuckGo: No cancer content detected`);
+                return {
+                    found: false,
+                    reason: 'No cancer-related terms found in DuckDuckGo search results',
+                    confidence: 60
+                };
+            }
+            
+            // Calculate confidence based on signals
+            let confidence = 60; // Base confidence
+            
+            if (titleMentionsCancer) {
+                confidence = 95; // High confidence if title mentions cancer
+            } else if (foundTerms.length >= 3) {
+                confidence = 90; // High confidence if 3+ cancer terms found
+            } else if (foundTerms.length >= 2 || resultsWithCancer >= 2) {
+                confidence = 80; // Medium-high confidence if 2+ terms or 2+ results
+            } else if (foundTerms.length === 1 || resultsWithCancer === 1) {
+                confidence = 70; // Medium confidence if 1 term or 1 result
+            }
+            
+            // Build reason string
+            const reasons = [];
+            if (titleMentionsCancer) {
+                reasons.push('Title mentions cancer-related terms');
+            }
+            if (foundTerms.length > 0) {
+                reasons.push(`Found ${foundTerms.length} cancer-related term(s): ${foundTerms.slice(0, 3).join(', ')}`);
+            }
+            if (resultsWithCancer > 0) {
+                reasons.push(`${resultsWithCancer} search result(s) mention cancer`);
+            }
+            
+            console.log(`  🎯 DuckDuckGo: Cancer content detected with ${confidence}% confidence`);
+            console.log(`  📝 Reasons: ${reasons.join('; ')}`);
+            
+            return {
+                found: true,
+                reason: reasons.join('; '),
+                confidence: confidence,
+                foundTerms: foundTerms,
+                resultsCount: resultsWithCancer
+            };
+            
+        } catch (error) {
+            // Log error to console for debugging (not shown to user)
+            console.error('🦆 DuckDuckGo search error:', error);
+            console.error('  Error details:', {
+                message: error.message,
+                stack: error.stack,
+                query: query
+            });
+            // Return null to trigger fallback to pattern matching (silent fallback for user)
+            return null;
+        }
+    }
+
     async searchWebForCancerContent(query, type) {
         console.log(`🌐 Searching web for cancer-related content: "${query}" (${type})`);
         
@@ -2772,6 +2888,18 @@ class LaurensList {
         }
         
         try {
+            // NEW: Try DuckDuckGo search first
+            const duckDuckGoResult = await this.searchDuckDuckGoForCancerContent(query, type);
+            
+            if (duckDuckGoResult && duckDuckGoResult.found) {
+                // DuckDuckGo found cancer content - return result
+                console.log(`  ✅ DuckDuckGo search found cancer content`);
+                return duckDuckGoResult;
+            }
+            
+            // DuckDuckGo didn't find cancer content or failed - fallback to pattern matching
+            console.log(`  🔄 Falling back to pattern matching...`);
+            
             const queryLower = query.toLowerCase();
             
             // Check if the title contains cancer-related keywords (quick check)
@@ -3009,14 +3137,14 @@ class LaurensList {
                 // Also search Wikipedia for detailed plot information
                 const wikipediaMovieInfo = await this.searchWikipediaMovie(movie.title);
                 
-                // Search web for cancer-related content
-                const webSearchResult = await this.searchWebForCancerContent(movie.title, 'movie');
-                
                 // Search IMDb Cancer Movies list
                 const imdbCancerResult = await this.searchIMDbCancerList(movie.title, exactMatch);
                 
                 // Search DoesTheDogDie for movie content warnings
                 const dtddMovieResult = await this.searchDoesTheDogDie(movie.title, exactMatch, 'movie');
+                
+                // Search web for cancer-related content (AFTER all other API searches)
+                const webSearchResult = await this.searchWebForCancerContent(movie.title, 'movie');
                 
                 console.log(`📚 Wikipedia cancer category check: ${wikipediaCancerCheck ? '✅ Found in cancer films category' : '❌ Not found'}`);
                 console.log(`📚 Wikipedia movie page: ${wikipediaMovieInfo ? '✅ Found detailed plot' : '❌ No detailed plot found'}`);
@@ -3115,10 +3243,10 @@ class LaurensList {
                     <strong>🎬 TMDB: ❌ No movies found</strong>
                 </div>`;
                 
-                // Even if TMDB finds no results, check web search, IMDb Cancer List, and DoesTheDogDie for cancer-related terms
-                const webSearchResult = await this.searchWebForCancerContent(query, 'movie');
+                // Even if TMDB finds no results, check IMDb Cancer List, DoesTheDogDie, and web search for cancer-related terms
                 const imdbCancerResult = await this.searchIMDbCancerList(query, exactMatch);
                 const dtddMovieResult = await this.searchDoesTheDogDie(query, exactMatch, 'movie');
+                const webSearchResult = await this.searchWebForCancerContent(query, 'movie');
                 
                 console.log(`🌐 Web search (no TMDB results): ${webSearchResult ? (webSearchResult.found ? '✅ Cancer content detected' : '❌ No cancer content') : '❌ Search failed'}`);
                 console.log(`🎬 IMDb Cancer List (no TMDB results): ${imdbCancerResult ? '✅ Found in cancer movies list' : '❌ Not found in cancer movies list'}`);
