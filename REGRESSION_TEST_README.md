@@ -90,3 +90,4 @@ The test includes 1-second delays between requests to avoid rate limiting. If yo
 - Some items may not be found in APIs (TMDB, Google Books, Wikipedia) - these are skipped
 - The test focuses on cancer term detection, not all trigger warnings
 
+

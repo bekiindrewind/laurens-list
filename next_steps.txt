@@ -1,6 +1,24 @@
-security - cleanse inputs
+DONE security - cleanse inputs
             confirmm no visible keys
             run snyk or whatever
+
+next steps:
+
+FIXED - DEADPOOL - came up as safe. wikipedia plot summary mentions cancer.
+Guardians of the galaxy movies 1 and 2 - both came up safe, shouldnt be. not found in wikipedia plot summary.., keep looking
+
+
+
+DONE - regression testing -new branch?
+create experimental branch and when "Movie" is selected, have it check to see if the movie is based on a book. if that book also contains cancer or related terms weshould mark it as not recommended.
+maybe also update logic so that if any high-confidence cancer terms are found in a single source, we no longer need to check the other sources. this should speed up the process.
+
+are there any other cancer-related books or movies that we could test against?
+
+
+
+change the order of the confidence levels so that they are in descending order by confidence.
+
 
 fix false positive from H
 
@@ -9,7 +27,7 @@ spin this off into a templated deployment process
 
 False positives:
 
-my oxford year movie
-step mom (book?) movie?
+DONE my oxford year movie
+DON step mom (book?) movie?
 
-false positives for astrology books? worth it?
+Not sure it is worth it  -false positives for astrology books? worth it?
