@@ -125,6 +125,181 @@ app.get('/api/doesthedogdie', apiLimiter, async (req, res) => {
     }
 });
 
+/**
+ * Parse DuckDuckGo HTML search results
+ * Extracts titles, snippets, and URLs from HTML response
+ * 
+ * @param {string} html - HTML content from DuckDuckGo
+ * @param {string} query - Original search query
+ * @returns {Array} Array of parsed results with title, snippet, url, and text
+ */
+function parseDuckDuckGoHTML(html, query) {
+    const results = [];
+    
+    try {
+        // DuckDuckGo HTML structure patterns
+        // Results are typically in containers with class containing "result"
+        
+        // Pattern 1: Look for result containers with various class patterns
+        const resultPatterns = [
+            /<div[^>]*class="[^"]*result[^"]*"[^>]*>(.*?)<\/div>/gis,
+            /<div[^>]*class="[^"]*web-result[^"]*"[^>]*>(.*?)<\/div>/gis,
+            /<div[^>]*class="[^"]*links_main[^"]*"[^>]*>(.*?)<\/div>/gis
+        ];
+        
+        let foundResults = false;
+        
+        for (const resultPattern of resultPatterns) {
+            let match;
+            const matches = [];
+            
+            // Reset regex lastIndex
+            resultPattern.lastIndex = 0;
+            
+            while ((match = resultPattern.exec(html)) !== null && matches.length < 20) {
+                matches.push(match[1]);
+            }
+            
+            if (matches.length > 0) {
+                foundResults = true;
+                
+                for (const resultHtml of matches) {
+                    // Extract title (usually in <a> tag)
+                    const titlePatterns = [
+                        /<a[^>]*class="[^"]*result__a[^"]*"[^>]*>(.*?)<\/a>/is,
+                        /<a[^>]*class="[^"]*result-link[^"]*"[^>]*>(.*?)<\/a>/is,
+                        /<a[^>]*class="[^"]*result[^"]*a[^"]*"[^>]*>(.*?)<\/a>/is,
+                        /<a[^>]*href="https?:\/\/[^"]*"[^>]*>(.*?)<\/a>/is
+                    ];
+                    
+                    let title = '';
+                    let url = '';
+                    
+                    for (const titlePattern of titlePatterns) {
+                        const titleMatch = resultHtml.match(titlePattern);
+                        if (titleMatch) {
+                            title = cleanHtmlText(titleMatch[1]);
+                            // Try to extract URL from the same link
+                            const urlMatch = resultHtml.match(/<a[^>]*href="([^"]*)"[^>]*>/is);
+                            if (urlMatch) {
+                                url = urlMatch[1];
+                            }
+                            break;
+                        }
+                    }
+                    
+                    // Extract snippet (usually in <a> or <span> with class containing "snippet")
+                    const snippetPatterns = [
+                        /<(?:a|span|div)[^>]*class="[^"]*snippet[^"]*"[^>]*>(.*?)<\/(?:a|span|div)>/is,
+                        /<(?:a|span|div)[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)<\/(?:a|span|div)>/is
+                    ];
+                    
+                    let snippet = '';
+                    for (const snippetPattern of snippetPatterns) {
+                        const snippetMatch = resultHtml.match(snippetPattern);
+                        if (snippetMatch) {
+                            snippet = cleanHtmlText(snippetMatch[1]);
+                            break;
+                        }
+                    }
+                    
+                    // Only add if we have at least a title or snippet
+                    if (title || snippet) {
+                        const text = `${title} ${snippet}`.trim().toLowerCase();
+                        if (text.length > 0) {
+                            results.push({
+                                title: title,
+                                snippet: snippet,
+                                url: url,
+                                text: text
+                            });
+                        }
+                    }
+                }
+                
+                if (results.length > 0) {
+                    break; // Found results with this pattern, stop trying others
+                }
+            }
+        }
+        
+        // Pattern 2: Alternative - look for links directly if container patterns didn't work
+        if (results.length === 0) {
+            // Look for links that might be search results
+            const linkPattern = /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*class="[^"]*result[^"]*"[^>]*>(.*?)<\/a>/gis;
+            let linkMatch;
+            const seenUrls = new Set();
+            
+            while ((linkMatch = linkPattern.exec(html)) !== null && results.length < 20) {
+                const url = linkMatch[1];
+                const linkText = cleanHtmlText(linkMatch[2]);
+                
+                // Skip if we've seen this URL or if it's not a valid result
+                if (seenUrls.has(url) || !url || !linkText || url.includes('duckduckgo.com')) {
+                    continue;
+                }
+                
+                seenUrls.add(url);
+                
+                // Try to find snippet near this link (look ahead in HTML)
+                const linkIndex = linkMatch.index;
+                const htmlAfterLink = html.substring(linkIndex, linkIndex + 1000);
+                const snippetMatch = htmlAfterLink.match(/<(?:a|span|div)[^>]*class="[^"]*snippet[^"]*"[^>]*>(.*?)<\/(?:a|span|div)>/is);
+                const snippet = snippetMatch ? cleanHtmlText(snippetMatch[1]) : '';
+                
+                results.push({
+                    title: linkText,
+                    snippet: snippet,
+                    url: url,
+                    text: `${linkText} ${snippet}`.trim().toLowerCase()
+                });
+            }
+        }
+        
+        console.log(`Proxy: Parsed ${results.length} results from DuckDuckGo HTML`);
+        
+        return results;
+        
+    } catch (parseError) {
+        console.error('Error parsing DuckDuckGo HTML:', parseError);
+        console.error('  Error details:', {
+            message: parseError.message,
+            stack: parseError.stack,
+            htmlLength: html ? html.length : 0
+        });
+        return [];
+    }
+}
+
+/**
+ * Clean HTML text by removing tags and decoding entities
+ * 
+ * @param {string} htmlText - HTML text to clean
+ * @returns {string} Cleaned text
+ */
+function cleanHtmlText(htmlText) {
+    if (!htmlText) return '';
+    
+    // Remove HTML tags
+    let text = htmlText.replace(/<[^>]*>/g, '');
+    
+    // Decode HTML entities (basic ones)
+    text = text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+        .replace(/&#x([a-f\d]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+    
+    // Clean up whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    return text;
+}
+
 // DuckDuckGo search proxy endpoint
 // SECURITY: Apply rate limiting to prevent abuse
 app.get('/api/duckduckgo-search', apiLimiter, async (req, res) => {
@@ -150,44 +325,34 @@ app.get('/api/duckduckgo-search', apiLimiter, async (req, res) => {
         
         for (const searchQuery of queries) {
             try {
-                const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&format=json&no_redirect=1&no_html=1`;
+                const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
                 
-                console.log('Proxy: Fetching from DuckDuckGo:', url);
+                console.log('Proxy: Fetching from DuckDuckGo HTML search:', url);
                 
                 const response = await fetch(url, {
                     headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        'Accept': 'text/html',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                     }
                 });
                 
                 if (!response.ok) {
-                    console.error(`Proxy: DuckDuckGo response status: ${response.status} for query "${searchQuery}"`);
+                    console.error(`Proxy: DuckDuckGo HTML response status: ${response.status} for query "${searchQuery}"`);
                     continue; // Try next query format
                 }
                 
-                const data = await response.json();
+                const html = await response.text();
+                console.log(`Proxy: DuckDuckGo HTML response length: ${html.length} characters`);
                 
-                // Extract all text content from response
-                const textContent = [
-                    data.AbstractText || '',
-                    data.Heading || '',
-                    ...(data.RelatedTopics || []).map(topic => topic.Text || ''),
-                    ...(data.Results || []).map(result => result.Text || '')
-                ].filter(text => text.length > 0).join(' ').toLowerCase();
+                // Parse HTML to extract search results
+                const parsedResults = parseDuckDuckGoHTML(html, searchQuery);
                 
-                if (textContent.length > 0) {
-                    results.push({
-                        query: searchQuery,
-                        text: textContent,
-                        abstractText: data.AbstractText || '',
-                        relatedTopics: data.RelatedTopics || [],
-                        results: data.Results || []
-                    });
+                if (parsedResults && parsedResults.length > 0) {
+                    results.push(...parsedResults);
                 }
             } catch (queryError) {
                 // Log error to console for debugging
-                console.error(`DuckDuckGo query error for "${searchQuery}":`, queryError);
+                console.error(`DuckDuckGo HTML query error for "${searchQuery}":`, queryError);
                 console.error(`  Error details:`, {
                     message: queryError.message,
                     stack: queryError.stack,
@@ -198,11 +363,14 @@ app.get('/api/duckduckgo-search', apiLimiter, async (req, res) => {
             }
         }
         
-        // Return combined results
+        // Combine all text from all results for analysis
+        const combinedText = results.map(r => r.text).join(' ');
+        
+        // Return combined results (same format as before for client compatibility)
         res.json({
             success: results.length > 0,
             results: results,
-            combinedText: results.map(r => r.text).join(' ')
+            combinedText: combinedText
         });
         
     } catch (error) {

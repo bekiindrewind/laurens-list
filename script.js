@@ -2812,8 +2812,9 @@ class LaurensList {
             );
             
             // Count number of results mentioning cancer
+            // Results now have: { title, snippet, url, text }
             const resultsWithCancer = data.results.filter(result => {
-                const resultText = result.text.toLowerCase();
+                const resultText = (result.text || `${result.title || ''} ${result.snippet || ''}`).toLowerCase();
                 return CANCER_TERMS.some(term => resultText.includes(term.toLowerCase()));
             }).length;
             
