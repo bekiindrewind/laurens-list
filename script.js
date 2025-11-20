@@ -35,7 +35,7 @@ const CANCER_SPECIFIC_TERMS = [
     'breast cancer', 'breast cancer survivor', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
     'brain tumor', 'brain tumour', 'cancer diagnosis', 'cancer prognosis', 'cancer remission',
     'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer',
-    'pediatric oncology', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
+    'pediatric oncology', 'pediatric ward', 'children\'s ward', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
     'cancer hospital', 'oncology department', 'cancer center', 'oncology center'
 ];
 
