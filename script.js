@@ -75,6 +75,7 @@ const CANCER_TERMS = [
     'fights cancer', 'battles cancer', 'struggles with cancer', 'deals with cancer',
     'medical treatment', 'undergoes treatment', 'receives treatment',
     'hospital stay', 'hospitalization', 'hospitalized',
+    'kids in her ward', 'kids in his ward', 'kids in their ward', 'children in her ward', 'children in his ward', 'children in their ward',
     'sick with', 'illness strikes', 'disease affects',
     'coping with illness', 'coping with disease', 'living with illness', 'living with disease',
     'illness story', 'disease story', 'medical drama', 'illness drama',
