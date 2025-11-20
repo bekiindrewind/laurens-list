@@ -30,9 +30,9 @@ console.log('📝 Script continuing to load...');
 // Used for high-confidence detection, especially in DoesTheDogDie results
 const CANCER_SPECIFIC_TERMS = [
     'cancer', 'tumor', 'tumour', 'malignancy', 'carcinoma', 'sarcoma', 'leukemia', 'leukaemia',
-    'lymphoma', 'melanoma', 'metastasis', 'chemotherapy', 'radiation', 'oncology', 'oncologist',
+    'lymphoma', 'melanoma', 'metastasis', 'metastasized', 'metastatic', 'chemotherapy', 'radiation', 'oncology', 'oncologist',
     'biopsy', 'malignant', 'benign', 'cancer treatment', 'cancer patient', 'cancer survivor',
-    'breast cancer', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
+    'breast cancer', 'breast cancer survivor', 'lung cancer', 'prostate cancer', 'colon cancer', 'pancreatic cancer',
     'brain tumor', 'brain tumour', 'cancer diagnosis', 'cancer prognosis', 'cancer remission',
     'thyroid cancer', 'ovarian cancer', 'cervical cancer', 'bone cancer', 'blood cancer',
     'pediatric oncology', 'oncology unit', 'cancer unit', 'cancer ward', 'oncology ward',
