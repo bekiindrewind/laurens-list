@@ -2124,7 +2124,9 @@ class LaurensList {
                                         let fullExtract = summaryData.extract;
                                         try {
                                             const wikipediaTitle = result.title.replace(/\s+/g, '_');
-                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
+                                            
+                                            // First try the extract API with higher limit (10000 chars)
+                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=10000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
                                             const fullExtractResponse = await fetch(fullExtractUrl);
                                             if (fullExtractResponse.ok) {
                                                 const fullExtractData = await fullExtractResponse.json();
@@ -2137,6 +2139,34 @@ class LaurensList {
                                                         fullExtract = pageData.extract;
                                                     }
                                                 }
+                                            }
+                                            
+                                            // Also try to get Plot section from HTML (more reliable for plot details)
+                                            try {
+                                                const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(wikipediaTitle)}`;
+                                                const htmlResponse = await fetch(htmlUrl);
+                                                if (htmlResponse.ok) {
+                                                    const htmlText = await htmlResponse.text();
+                                                    // Extract Plot section specifically
+                                                    const plotMatch = htmlText.match(/<h2[^>]*>[\s]*Plot[\s]*<\/h2>[\s\S]*?(?=<h2|$)/i);
+                                                    if (plotMatch) {
+                                                        // Remove HTML tags and clean up
+                                                        const plotText = plotMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                        if (plotText.length > fullExtract.length) {
+                                                            console.log(`  📚 Using Plot section from HTML (${plotText.length} chars) instead of extract (${fullExtract.length} chars)`);
+                                                            fullExtract = plotText;
+                                                        } else if (plotText.length > 200) {
+                                                            // Append Plot section if extract doesn't have it
+                                                            const combinedText = fullExtract + ' ' + plotText;
+                                                            if (combinedText.length > fullExtract.length) {
+                                                                console.log(`  📚 Appending Plot section from HTML (${plotText.length} chars) to extract`);
+                                                                fullExtract = combinedText;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (htmlError) {
+                                                console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
                                             }
                                         } catch (fullExtractError) {
                                             console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
@@ -2267,7 +2297,9 @@ class LaurensList {
                                         let fullExtract = summaryData.extract;
                                         try {
                                             const wikipediaTitle = result.title.replace(/\s+/g, '_');
-                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
+                                            
+                                            // First try the extract API with higher limit (10000 chars)
+                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=10000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
                                             const fullExtractResponse = await fetch(fullExtractUrl);
                                             if (fullExtractResponse.ok) {
                                                 const fullExtractData = await fullExtractResponse.json();
@@ -2280,6 +2312,34 @@ class LaurensList {
                                                         fullExtract = pageData.extract;
                                                     }
                                                 }
+                                            }
+                                            
+                                            // Also try to get Plot section from HTML (more reliable for plot details)
+                                            try {
+                                                const htmlUrl = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(wikipediaTitle)}`;
+                                                const htmlResponse = await fetch(htmlUrl);
+                                                if (htmlResponse.ok) {
+                                                    const htmlText = await htmlResponse.text();
+                                                    // Extract Plot section specifically
+                                                    const plotMatch = htmlText.match(/<h2[^>]*>[\s]*Plot[\s]*<\/h2>[\s\S]*?(?=<h2|$)/i);
+                                                    if (plotMatch) {
+                                                        // Remove HTML tags and clean up
+                                                        const plotText = plotMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                                                        if (plotText.length > fullExtract.length) {
+                                                            console.log(`  📚 Using Plot section from HTML (${plotText.length} chars) instead of extract (${fullExtract.length} chars)`);
+                                                            fullExtract = plotText;
+                                                        } else if (plotText.length > 200) {
+                                                            // Append Plot section if extract doesn't have it
+                                                            const combinedText = fullExtract + ' ' + plotText;
+                                                            if (combinedText.length > fullExtract.length) {
+                                                                console.log(`  📚 Appending Plot section from HTML (${plotText.length} chars) to extract`);
+                                                                fullExtract = combinedText;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (htmlError) {
+                                                console.log(`  ⚠️ Could not fetch HTML for Plot section:`, htmlError);
                                             }
                                         } catch (fullExtractError) {
                                             console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
