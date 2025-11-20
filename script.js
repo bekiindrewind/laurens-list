@@ -66,8 +66,8 @@ const CANCER_TERMS = [
     // These phrases indicate cancer/terminal illness content even if "cancer" isn't explicitly mentioned
     // Helps catch content like "My Oxford Year" where plot summaries describe cancer themes
     // without using the exact word "cancer"
-    'battles illness', 'fighting illness', 'struggles with illness', 'deals with illness',
-    'battles disease', 'fighting disease', 'struggles with disease', 'deals with disease',
+    'battles illness', 'fighting illness', 'struggles with illness', 'struggling with illness', 'struggles with the illness', 'struggling with the illness', 'deals with illness',
+    'battles disease', 'fighting disease', 'struggles with disease', 'struggling with disease', 'struggles with the disease', 'struggling with the disease', 'deals with disease',
     'terminal diagnosis', 'terminal condition', 'terminal situation',
     'medical condition', 'serious condition', 'life-threatening condition',
     'life-threatening disease', 'life-threatening illness',
@@ -2119,11 +2119,34 @@ class LaurensList {
                                     
                                     if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found movie: ${summaryData.title}`);
+                                        
+                                        // Try to get full extract (not just summary) to catch plot details
+                                        let fullExtract = summaryData.extract;
+                                        try {
+                                            const wikipediaTitle = result.title.replace(/\s+/g, '_');
+                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
+                                            const fullExtractResponse = await fetch(fullExtractUrl);
+                                            if (fullExtractResponse.ok) {
+                                                const fullExtractData = await fullExtractResponse.json();
+                                                const pages = fullExtractData.query?.pages;
+                                                if (pages) {
+                                                    const pageId = Object.keys(pages)[0];
+                                                    const pageData = pages[pageId];
+                                                    if (pageData.extract && pageData.extract.length > fullExtract.length) {
+                                                        console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${fullExtract.length} chars)`);
+                                                        fullExtract = pageData.extract;
+                                                    }
+                                                }
+                                            }
+                                        } catch (fullExtractError) {
+                                            console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
+                                        }
+                                        
                                         foundMatch = true;
                                         return {
                                             title: summaryData.title,
                                             description: summaryData.description || 'Unknown',
-                                            plotSummary: summaryData.extract,
+                                            plotSummary: fullExtract,
                                             reviews: '',
                                             contentWarnings: '',
                                             publishedDate: 'Unknown',
@@ -2239,11 +2262,34 @@ class LaurensList {
                                     
                                     if (summaryData.extract && summaryData.extract.length > 50 && isLikelyFilmPage && !looksLikePerson && !looksLikeBook) {
                                         console.log(`  🎬 Wikipedia found film: ${summaryData.title}`);
+                                        
+                                        // Try to get full extract (not just summary) to catch plot details
+                                        let fullExtract = summaryData.extract;
+                                        try {
+                                            const wikipediaTitle = result.title.replace(/\s+/g, '_');
+                                            const fullExtractUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&exchars=5000&titles=${encodeURIComponent(wikipediaTitle)}&origin=*`;
+                                            const fullExtractResponse = await fetch(fullExtractUrl);
+                                            if (fullExtractResponse.ok) {
+                                                const fullExtractData = await fullExtractResponse.json();
+                                                const pages = fullExtractData.query?.pages;
+                                                if (pages) {
+                                                    const pageId = Object.keys(pages)[0];
+                                                    const pageData = pages[pageId];
+                                                    if (pageData.extract && pageData.extract.length > fullExtract.length) {
+                                                        console.log(`  📚 Using full extract (${pageData.extract.length} chars) instead of summary (${fullExtract.length} chars)`);
+                                                        fullExtract = pageData.extract;
+                                                    }
+                                                }
+                                            }
+                                        } catch (fullExtractError) {
+                                            console.log(`  ⚠️ Could not fetch full extract, using summary:`, fullExtractError);
+                                        }
+                                        
                                         foundMatch = true;
                                         return {
                                             title: summaryData.title,
                                             description: summaryData.description || 'Unknown',
-                                            plotSummary: summaryData.extract,
+                                            plotSummary: fullExtract,
                                             reviews: '',
                                             contentWarnings: '',
                                             publishedDate: 'Unknown',
