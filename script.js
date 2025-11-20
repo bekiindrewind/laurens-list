@@ -77,6 +77,7 @@ const CANCER_TERMS = [
     'hospital stay', 'hospitalization', 'hospitalized',
     'kids in her ward', 'kids in his ward', 'kids in their ward', 'children in her ward', 'children in his ward', 'children in their ward',
     'dying mother', 'dying father', 'dying brother', 'dying sister', 'dying friend', 'dying uncle', 'dying aunt', 'dying grandmother', 'dying grandfather', 'dying parent', 'dying parents', 'dying child', 'dying children', 'dying spouse', 'dying husband', 'dying wife', 'dying partner',
+    'begins dying', 'is dying', 'was dying', 'are dying', 'were dying', 'started dying', 'starts dying', 'begins dying of', 'is dying of', 'was dying of', 'are dying of', 'were dying of',
     'sick with', 'illness strikes', 'disease affects',
     'coping with illness', 'coping with disease', 'living with illness', 'living with disease',
     'illness story', 'disease story', 'medical drama', 'illness drama',
