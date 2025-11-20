@@ -2811,18 +2811,47 @@ class LaurensList {
                 query.toLowerCase().includes(term.toLowerCase())
             );
             
-            // Count number of results mentioning cancer
-            // Results now have: { title, snippet, url, text }
+            // Count number of results mentioning cancer IN CONTEXT WITH THE MOVIE/TITLE
+            // Only count results where both the title AND cancer terms appear together
+            const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2); // Get significant words from query
             const resultsWithCancer = data.results.filter(result => {
                 const resultText = (result.text || `${result.title || ''} ${result.snippet || ''}`).toLowerCase();
-                return CANCER_TERMS.some(term => resultText.includes(term.toLowerCase()));
+                const hasCancerTerm = CANCER_TERMS.some(term => resultText.includes(term.toLowerCase()));
+                
+                // Require that the result is actually ABOUT the movie/book (title words appear in result)
+                // This prevents false positives from unrelated articles
+                const isAboutTitle = queryWords.some(word => 
+                    resultText.includes(word) && word.length > 3 // Only check significant words
+                );
+                
+                // Only count if BOTH cancer term AND title context are present
+                return hasCancerTerm && isAboutTitle;
             }).length;
             
-            // Determine if cancer content exists
-            const found = foundTerms.length > 0 || titleMentionsCancer || resultsWithCancer > 0;
+            // Also check if cancer terms appear in proximity to title in combined text
+            // Look for patterns like "The Grinch cancer" or "cancer in The Grinch"
+            const queryLower = query.toLowerCase();
+            const hasContextualCancer = foundTerms.some(term => {
+                const termLower = term.toLowerCase();
+                const termIndex = combinedText.indexOf(termLower);
+                if (termIndex === -1) return false;
+                
+                // Check if title appears within 100 characters of cancer term
+                const contextStart = Math.max(0, termIndex - 100);
+                const contextEnd = Math.min(combinedText.length, termIndex + term.length + 100);
+                const context = combinedText.substring(contextStart, contextEnd);
+                
+                // Check if any significant word from title appears in context
+                return queryWords.some(word => 
+                    context.includes(word) && word.length > 3
+                );
+            });
+            
+            // Determine if cancer content exists (require contextual relevance)
+            const found = titleMentionsCancer || (hasContextualCancer && foundTerms.length >= 2) || resultsWithCancer >= 2;
             
             if (!found) {
-                console.log(`  🦆 DuckDuckGo: No cancer content detected`);
+                console.log(`  🦆 DuckDuckGo: No cancer content detected (or not in context with title)`);
                 return {
                     found: false,
                     reason: 'No cancer-related terms found in DuckDuckGo search results',
@@ -2830,17 +2859,19 @@ class LaurensList {
                 };
             }
             
-            // Calculate confidence based on signals
+            // Calculate confidence based on signals (lower confidence for DuckDuckGo alone)
             let confidence = 60; // Base confidence
             
             if (titleMentionsCancer) {
                 confidence = 95; // High confidence if title mentions cancer
-            } else if (foundTerms.length >= 3) {
-                confidence = 90; // High confidence if 3+ cancer terms found
-            } else if (foundTerms.length >= 2 || resultsWithCancer >= 2) {
-                confidence = 80; // Medium-high confidence if 2+ terms or 2+ results
-            } else if (foundTerms.length === 1 || resultsWithCancer === 1) {
-                confidence = 70; // Medium confidence if 1 term or 1 result
+            } else if (hasContextualCancer && foundTerms.length >= 3 && resultsWithCancer >= 2) {
+                confidence = 85; // High confidence if 3+ terms AND 2+ contextual results
+            } else if (hasContextualCancer && foundTerms.length >= 2 && resultsWithCancer >= 2) {
+                confidence = 75; // Medium-high confidence if 2+ terms AND 2+ contextual results
+            } else if (hasContextualCancer && foundTerms.length >= 1 && resultsWithCancer >= 1) {
+                confidence = 65; // Lower confidence for single matches (requires other sources)
+            } else {
+                confidence = 60; // Very low confidence - shouldn't trigger alone
             }
             
             // Build reason string
@@ -2848,11 +2879,11 @@ class LaurensList {
             if (titleMentionsCancer) {
                 reasons.push('Title mentions cancer-related terms');
             }
-            if (foundTerms.length > 0) {
-                reasons.push(`Found ${foundTerms.length} cancer-related term(s): ${foundTerms.slice(0, 3).join(', ')}`);
+            if (hasContextualCancer && foundTerms.length > 0) {
+                reasons.push(`Found ${foundTerms.length} cancer-related term(s) in context with title: ${foundTerms.slice(0, 3).join(', ')}`);
             }
             if (resultsWithCancer > 0) {
-                reasons.push(`${resultsWithCancer} search result(s) mention cancer`);
+                reasons.push(`${resultsWithCancer} search result(s) mention cancer in context with title`);
             }
             
             console.log(`  🎯 DuckDuckGo: Cancer content detected with ${confidence}% confidence`);
@@ -3505,13 +3536,22 @@ class LaurensList {
             console.log(`⚠️ Trigger Warning Database check: YES - Found in terminal illnesses/cancer warnings database`);
         }
 
-        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && !webSearchCancerCheck && !imdbCancerCheck && !dtddCancerCheck && !triggerWarningCheck;
+        // DuckDuckGo alone requires higher confidence threshold (80%+) to trigger "not recommended"
+        // This prevents false positives from unrelated search results
+        const duckDuckGoConfidence = webSearchCancerCheck ? webSearchCancerCheck.confidence : 0;
+        const duckDuckGoAlone = webSearchCancerCheck && !wikipediaCancerCheck && !imdbCancerCheck && !dtddCancerCheck && !triggerWarningCheck && foundTerms.length === 0;
+        
+        // If only DuckDuckGo found cancer, require 80%+ confidence
+        const isSafe = !knownCancerContent.isKnownCancer && foundTerms.length === 0 && !wikipediaCancerCheck && 
+                      (!webSearchCancerCheck || (duckDuckGoAlone && duckDuckGoConfidence < 80)) && 
+                      !imdbCancerCheck && !dtddCancerCheck && !triggerWarningCheck;
+        
         const confidence = knownCancerContent.isKnownCancer ? 0.95 : 
                           triggerWarningCheck ? 0.95 :
                           wikipediaCancerCheck ? 0.95 :
                           imdbCancerCheck ? 0.95 :
                           dtddCancerCheck ? 0.90 :
-                          webSearchCancerCheck ? webSearchCancerCheck.confidence / 100 :
+                          webSearchCancerCheck ? (duckDuckGoAlone ? Math.min(webSearchCancerCheck.confidence / 100, 0.75) : webSearchCancerCheck.confidence / 100) :
                           foundTerms.length > 0 ? 0.8 : 0.9;
 
         console.log(`🎯 Final Analysis Result:`);
