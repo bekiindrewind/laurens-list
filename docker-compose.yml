@@ -1,177 +1,141 @@
-version: "3.7"
-
+version: '3.7'
 services:
-  traefik:
-    image: "traefik"
-    restart: always
-    command:
-      - "--api=true"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.directory=/etc/traefik/dynamic"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.mytlschallenge.acme.tlschallenge=true"
-      - "--certificatesresolvers.mytlschallenge.acme.email=${SSL_EMAIL}"
-      - "--certificatesresolvers.mytlschallenge.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - traefik_data:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - default
-
   n8n:
     image: docker.n8n.io/n8nio/n8n
     restart: always
     ports:
-      - "127.0.0.1:5678:5678"
+    - 127.0.0.1:5678:5678
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.n8n.rule=Host(`${SUBDOMAIN}.${DOMAIN_NAME}`)
-      - traefik.http.routers.n8n.tls=true
-      - traefik.http.routers.n8n.entrypoints=web,websecure
-      - traefik.http.routers.n8n.tls.certresolver=mytlschallenge
-      - traefik.http.middlewares.n8n.headers.SSLRedirect=true
-      - traefik.http.middlewares.n8n.headers.STSSeconds=315360000
-      - traefik.http.middlewares.n8n.headers.browserXSSFilter=true
-      - traefik.http.middlewares.n8n.headers.contentTypeNosniff=true
-      - traefik.http.middlewares.n8n.headers.forceSTSHeader=true
-      - traefik.http.middlewares.n8n.headers.SSLHost=${DOMAIN_NAME}
-      - traefik.http.middlewares.n8n.headers.STSIncludeSubdomains=true
-      - traefik.http.middlewares.n8n.headers.STSPreload=true
-      - traefik.http.routers.n8n.middlewares=n8n@docker
+    - traefik.enable=true
+    - traefik.http.routers.n8n.rule=Host(`${SUBDOMAIN}.${DOMAIN_NAME}`)
+    - traefik.http.routers.n8n.tls=true
+    - traefik.http.routers.n8n.entrypoints=web,websecure
+    - traefik.http.routers.n8n.tls.certresolver=letsencrypt
+    - traefik.http.middlewares.n8n.headers.SSLRedirect=true
+    - traefik.http.middlewares.n8n.headers.STSSeconds=315360000
+    - traefik.http.middlewares.n8n.headers.browserXSSFilter=true
+    - traefik.http.middlewares.n8n.headers.contentTypeNosniff=true
+    - traefik.http.middlewares.n8n.headers.forceSTSHeader=true
+    - traefik.http.middlewares.n8n.headers.SSLHost=${DOMAIN_NAME}
+    - traefik.http.middlewares.n8n.headers.STSIncludeSubdomains=true
+    - traefik.http.middlewares.n8n.headers.STSPreload=true
+    - traefik.http.routers.n8n.middlewares=n8n@docker
     environment:
-      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - NODE_ENV=production
+    - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+    - N8N_PORT=5678
+    - N8N_PROTOCOL=https
+    - NODE_ENV=production
     volumes:
-      - n8n_data:/home/node/.n8n
-      - /local-files:/files
-
+    - n8n_data:/home/node/.n8n
+    - /local-files:/files
   laurenslist:
-    image: laurens-list-laurenslist:latest
+    image: laurens-list-laurenslist:prod-a051741
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
       args:
-        # SECURITY: API keys should be provided via environment variables or .env file
-        # Create /root/.env with: TMDB_API_KEY=xxx, GOOGLE_BOOKS_API_KEY=xxx, DOESTHEDOGDIE_API_KEY=xxx
         TMDB_API_KEY: ${TMDB_API_KEY:-YOUR_TMDB_API_KEY}
         GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}
         DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}
     restart: always
     networks:
-      - default
+    - default
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.laurenslist.rule=Host(`laurenslist.org`) || Host(`www.laurenslist.org`) || Host(`srv1010721.hstgr.cloud`)"
-      - "traefik.http.routers.laurenslist.tls=true"
-      - "traefik.http.routers.laurenslist.entrypoints=web,websecure"
-      - "traefik.http.routers.laurenslist.tls.certresolver=mytlschallenge"
-      - "traefik.http.services.laurenslist.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.laurenslist-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.laurenslist-headers.headers.STSSeconds=31536000"
-      - "traefik.http.routers.laurenslist.middlewares=laurenslist-headers@docker"
+    - traefik.enable=true
+    - traefik.http.routers.laurenslist.rule=Host(`laurenslist.org`) || Host(`www.laurenslist.org`)
+      || Host(`srv1010721.hstgr.cloud`)
+    - traefik.http.routers.laurenslist.tls=true
+    - traefik.http.routers.laurenslist.entrypoints=web,websecure
+    - traefik.http.routers.laurenslist.tls.certresolver=letsencrypt
+    - traefik.http.services.laurenslist.loadbalancer.server.port=8080
+    - traefik.http.middlewares.laurenslist-headers.headers.SSLRedirect=true
+    - traefik.http.middlewares.laurenslist-headers.headers.STSSeconds=31536000
+    - traefik.http.routers.laurenslist.middlewares=laurenslist-headers@docker
     environment:
-      # Also pass as runtime environment variable for server.js
-      - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
-
+    - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
   laurenslist-dev:
     image: laurens-list-laurenslist-dev:latest
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile
       args:
-        # SECURITY: API keys should be provided via environment variables or .env file
-        # Create /root/.env with: TMDB_API_KEY=xxx, GOOGLE_BOOKS_API_KEY=xxx, DOESTHEDOGDIE_API_KEY=xxx
         TMDB_API_KEY: ${TMDB_API_KEY:-YOUR_TMDB_API_KEY}
         GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-YOUR_GOOGLE_BOOKS_API_KEY}
         DOESTHEDOGDIE_API_KEY: ${DOESTHEDOGDIE_API_KEY:-YOUR_DTDD_API_KEY}
     restart: always
     networks:
-      - default
+    - default
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.laurenslist-dev.rule=Host(`dev.laurenslist.org`)"
-      - "traefik.http.routers.laurenslist-dev.tls=true"
-      - "traefik.http.routers.laurenslist-dev.entrypoints=web,websecure"
-      - "traefik.http.routers.laurenslist-dev.tls.certresolver=mytlschallenge"
-      - "traefik.http.services.laurenslist-dev.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.laurenslist-dev-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.laurenslist-dev-headers.headers.STSSeconds=31536000"
-      - "traefik.http.routers.laurenslist-dev.middlewares=laurenslist-dev-headers@docker"
+    - traefik.enable=true
+    - traefik.http.routers.laurenslist-dev.rule=Host(`dev.laurenslist.org`)
+    - traefik.http.routers.laurenslist-dev.tls=true
+    - traefik.http.routers.laurenslist-dev.entrypoints=web,websecure
+    - traefik.http.routers.laurenslist-dev.tls.certresolver=letsencrypt
+    - traefik.http.services.laurenslist-dev.loadbalancer.server.port=8080
+    - traefik.http.middlewares.laurenslist-dev-headers.headers.SSLRedirect=true
+    - traefik.http.middlewares.laurenslist-dev-headers.headers.STSSeconds=31536000
+    - traefik.http.routers.laurenslist-dev.middlewares=laurenslist-dev-headers@docker
     environment:
-      - NODE_ENV=development
-      # Also pass as runtime environment variable for server.js
-      - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
-
+    - NODE_ENV=development
+    - DOESTHEDOGDIE_API_KEY=${DOESTHEDOGDIE_API_KEY:-}
   webhook-listener:
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile.webhook
     restart: always
     env_file:
-      - /root/.env
+    - /root/.env
     networks:
-      - default
+    - default
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webhook.rule=Host(`webhook.laurenslist.org`)"
-      - "traefik.http.routers.webhook.tls=true"
-      - "traefik.http.routers.webhook.entrypoints=web,websecure"
-      - "traefik.http.routers.webhook.tls.certresolver=mytlschallenge"
-      - "traefik.http.services.webhook.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000"
-      - "traefik.http.routers.webhook.middlewares=webhook-headers@docker"
-    # WEBHOOK_SECRET is loaded from env_file: /root/.env
+    - traefik.enable=true
+    - traefik.http.routers.webhook.rule=Host(`webhook.laurenslist.org`)
+    - traefik.http.routers.webhook.tls=true
+    - traefik.http.routers.webhook.entrypoints=web,websecure
+    - traefik.http.routers.webhook.tls.certresolver=letsencrypt
+    - traefik.http.services.webhook.loadbalancer.server.port=3000
+    - traefik.http.middlewares.webhook-headers.headers.SSLRedirect=true
+    - traefik.http.middlewares.webhook-headers.headers.STSSeconds=31536000
+    - traefik.http.routers.webhook.middlewares=webhook-headers@docker
     volumes:
-      - /root/laurens-list:/app
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - webhook_node_modules:/app/node_modules
-    command: ["node", "webhook-listener.js"]
-
+    - /root/laurens-list:/app
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - webhook_node_modules:/app/node_modules
+    command:
+    - node
+    - webhook-listener.js
   webhook-listener-prod:
     build:
       context: /root/laurens-list
       dockerfile: /root/laurens-list/Dockerfile.webhook.prod
     restart: always
     env_file:
-      - /root/.env
+    - /root/.env
     networks:
-      - default
+    - default
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webhook-prod.rule=Host(`webhook-prod.laurenslist.org`)"
-      - "traefik.http.routers.webhook-prod.tls=true"
-      - "traefik.http.routers.webhook-prod.entrypoints=web,websecure"
-      - "traefik.http.routers.webhook-prod.tls.certresolver=mytlschallenge"
-      - "traefik.http.services.webhook-prod.loadbalancer.server.port=3000"
-      - "traefik.http.middlewares.webhook-prod-headers.headers.SSLRedirect=true"
-      - "traefik.http.middlewares.webhook-prod-headers.headers.STSSeconds=31536000"
-      - "traefik.http.routers.webhook-prod.middlewares=webhook-prod-headers@docker"
-    # WEBHOOK_SECRET_PROD is loaded from env_file: /root/.env
+    - traefik.enable=true
+    - traefik.http.routers.webhook-prod.rule=Host(`webhook-prod.laurenslist.org`)
+    - traefik.http.routers.webhook-prod.tls=true
+    - traefik.http.routers.webhook-prod.entrypoints=web,websecure
+    - traefik.http.routers.webhook-prod.tls.certresolver=letsencrypt
+    - traefik.http.services.webhook-prod.loadbalancer.server.port=3000
+    - traefik.http.middlewares.webhook-prod-headers.headers.SSLRedirect=true
+    - traefik.http.middlewares.webhook-prod-headers.headers.STSSeconds=31536000
+    - traefik.http.routers.webhook-prod.middlewares=webhook-prod-headers@docker
     volumes:
-      - /root/laurens-list:/app
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - webhook_prod_node_modules:/app/node_modules
-    command: ["node", "webhook-listener-prod.js"]
-
+    - /root/laurens-list:/app
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - webhook_prod_node_modules:/app/node_modules
+    command:
+    - node
+    - webhook-listener-prod.js
 volumes:
-  traefik_data:
-  n8n_data:
-  webhook_node_modules:
-  webhook_prod_node_modules:
-
+  traefik_data: null
+  n8n_data: null
+  webhook_node_modules: null
+  webhook_prod_node_modules: null
 networks:
   default:
     external: true
     name: root_default
-
